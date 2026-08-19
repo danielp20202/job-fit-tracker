@@ -88,3 +88,59 @@ not a spec)
   works. Stay entirely at the "what does this do for me" level.
 - No specific company names, real job postings, or real people's data in
   any example content — use clearly generic/placeholder examples.
+
+---
+
+## Technical reference (context for you only — do not put any of this in
+the actual output; it exists so your diagrams and step descriptions are
+grounded in what the tool actually does, translated into the plain-language
+terms above)
+
+This is a real, currently-running pipeline, not a concept. Here's what
+actually happens, end to end:
+
+1. **Watching LinkedIn**: two saved LinkedIn job searches (specific title/
+   seniority criteria, e.g. "Manager, Senior Manager, Director, Head, or VP
+   of Customer Success roles, remote or hybrid in Canada") are each turned
+   into an RSS feed via a third-party service (rss.app), which polls
+   LinkedIn's search results and detects new postings automatically.
+2. **Real-time capture**: the moment a new posting is detected, that
+   service pushes it (via a webhook — an automatic instant notification,
+   not a scheduled check) to a small receiving endpoint that's part of this
+   project's webapp. That endpoint verifies the push is legitimate, then
+   stores the raw posting (title, link, description, date) in a holding
+   area — nothing is scored yet at this point, it's just captured.
+3. **Scoring, on a schedule**: three times a day, a separate automated
+   process wakes up, reads everything sitting unscored in that holding
+   area, and for each one:
+   - Skips it if it's a duplicate of something already scored recently.
+   - Reads the posting (fetching the full page for anything that looks
+     plausibly relevant by title, to get accurate details like whether
+     it's remote/hybrid/onsite and what it pays).
+   - Scores it 1-5 against a personal rubric — a written set of criteria
+     covering seniority, industry fit, location/remote requirements,
+     salary floor, and account/leadership scope, with automatic
+     disqualifiers for things like on-site-only roles outside the user's
+     city or pay below a stated floor.
+   - Saves the scored result (with a one-sentence explanation of the score)
+     to the main results list.
+   - Also handles simple housekeeping: postings older than a week get
+     flagged as stale, postings older than ~2 weeks get archived out of the
+     active list.
+4. **Viewing results**: a webapp reads that results list and displays it as
+   a ranked, filterable list — sorted best-fit-first, with a filter for
+   location (remote / specific cities). Clicking a listing shows a detail
+   view with the full score breakdown and a link to the original posting.
+
+Plain-language mapping for the doc: step 1-2 above = "it watches
+continuously." Step 3 = "every new posting gets automatically scored"
+(the "someone reads each one and rates it" framing is describing this
+step — the actual scoring is done by an AI model applying the rubric, but
+the doc should describe the *outcome* — a human-judgment-quality read of
+fit — not the mechanism). Step 4 = "you see one clean, ranked list."
+
+If your diagram wants a 4-step flow instead of the 3-4 step version
+suggested above, these four real stages (capture → hold → score → display)
+map cleanly to it — just keep every label in plain language, e.g. "Watches
+LinkedIn" → "Catches new postings instantly" → "Scores each one against
+your criteria" → "Shows you a ranked list."
