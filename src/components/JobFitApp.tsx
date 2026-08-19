@@ -280,14 +280,13 @@ function FilterSheet({
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 30 }} />
       <div
+        className="max-w-[440px] sm:max-w-[600px] lg:max-w-[680px] mx-auto"
         style={{
           position: "fixed",
           left: 0,
           right: 0,
           bottom: 0,
           zIndex: 31,
-          maxWidth: 440,
-          margin: "0 auto",
           background: theme.surface,
           borderTop: `2px solid ${theme.divider}`,
           padding: "20px 20px 32px",
@@ -389,7 +388,7 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
 
   return (
     <div style={{ minHeight: "100vh", background: theme.bg, color: theme.text }}>
-      <div style={{ maxWidth: 440, margin: "0 auto", position: "relative" }}>
+      <div className="max-w-[440px] sm:max-w-[600px] lg:max-w-[680px] mx-auto" style={{ position: "relative" }}>
         {screen === "list" && (
           <>
             <div style={{ padding: "32px 20px 4px" }}>
