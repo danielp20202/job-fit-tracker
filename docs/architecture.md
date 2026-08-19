@@ -8,7 +8,7 @@ webapp. Everything runs unattended except reviewing the results.
 ## Pipeline overview
 
 ```
-LinkedIn searches (2, via rss.app)
+LinkedIn searches (multiple, via rss.app)
         │  rss.app polls each search URL, diffs against what it last saw
         ▼
 rss.app webhooks (fire on new items only, real-time)
@@ -41,7 +41,7 @@ decouples **capture** (real-time, cheap, always-on) from **scoring**
 
 ## Components
 
-### 1. LinkedIn search feeds (2, via rss.app)
+### 1. LinkedIn search feeds (via rss.app)
 
 LinkedIn's job search moved to an LLM-driven natural-language query model —
 structured filter params (`f_E`, `f_WT`, etc.) are largely ignored by the
@@ -59,7 +59,12 @@ hours), and `sortBy=DD` (most recent first):
   people-management)
 
 Each is wrapped into an RSS feed via rss.app (Basic plan: 25 posts/feed, 15
-feeds, 2 webhooks), with a webhook attached pointing at this repo's receiver.
+feeds total, 2 webhook *endpoints*). A webhook endpoint can have multiple
+feeds attached to it — the real cap on how many searches can feed the
+pipeline is the 15-feed limit, not the 2 webhooks. Both currently-live feeds
+(CS leadership, Account Management) are attached to one webhook endpoint,
+pointing at this repo's receiver; the second webhook endpoint is still
+available for more feeds.
 
 ### 2. Webhook receiver — `src/app/api/webhooks/rss/route.ts`
 
@@ -153,15 +158,15 @@ GitHub integration (no CLI deploys — see note below).
 - Required Vercel env vars: `NOTION_API_KEY`, `NOTION_DATA_SOURCE_ID`,
   `NOTION_INBOX_DATA_SOURCE_ID`, `RSS_APP_WEBHOOK_SECRET` — see
   `.env.example`.
-- The webhook URL to enter in rss.app for both feeds:
+- The webhook URL to enter in rss.app for every feed:
   `https://job-fit-tracker.vercel.app/api/webhooks/rss`.
 
 ## Known simplifications / things worth revisiting
 
-- Only 2 rss.app webhook slots (Basic plan) are in use, so only 2 LinkedIn
-  searches feed the pipeline in real time. More feeds are possible but
-  would need polling instead of a webhook, reintroducing the coverage-gap
-  problem webhooks were adopted to solve.
+- Feed count is capped at 15 (rss.app Basic plan), not 2 — a single webhook
+  endpoint can have many feeds attached to it. Room to add several more
+  targeted LinkedIn searches (see the natural-language query approach in
+  the "why webhook" note below) before hitting any real limit.
 - The scoring routine's Notion access is a raw bearer token embedded in its
   prompt (no MCP connector attached to that cloud sandbox) — rotate the
   Notion integration token if it's ever compromised, and update the routine
