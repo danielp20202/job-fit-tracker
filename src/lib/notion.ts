@@ -3,11 +3,16 @@ import type { PageObjectResponse } from "@notionhq/client";
 
 const DATA_SOURCE_ID = process.env.NOTION_DATA_SOURCE_ID ?? "";
 
+export type WorkMode = "Remote" | "Hybrid" | "Onsite" | "Unknown";
+
 export interface DisplayListing {
   id: string;
   title: string;
   company: string;
+  companyLink: string;
   location: string;
+  workMode: WorkMode;
+  pay: string;
   link: string;
   datePosted: string | null;
   fitScore: number | null;
@@ -27,7 +32,10 @@ function pageToListing(page: PageObjectResponse): DisplayListing {
     id: page.id,
     title: titleProp?.title?.map((t) => t.plain_text).join("") ?? "Untitled",
     company: richText(props.Company),
+    companyLink: (props["Company Link"] as { url?: string })?.url ?? "",
     location: richText(props.Location),
+    workMode: ((props["Work Mode"] as { select?: { name?: string } })?.select?.name as WorkMode) ?? "Unknown",
+    pay: richText(props.Pay),
     link: (props.Link as { url?: string })?.url ?? "",
     datePosted: (props["Date Posted"] as { date?: { start?: string } })?.date?.start ?? null,
     fitScore: (props["Fit Score"] as { number?: number })?.number ?? null,

@@ -1,41 +1,7 @@
 import { getListings, type DisplayListing } from "@/lib/notion";
+import { ListingsBoard } from "@/components/ListingsBoard";
 
 export const revalidate = 300; // re-fetch from Notion at most every 5 minutes
-
-function FitBadge({ score }: { score: number | null }) {
-  if (score === null) return <span className="text-zinc-400 text-sm">—</span>;
-  const color =
-    score >= 4 ? "bg-green-100 text-green-800" : score >= 3 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800";
-  return <span className={`rounded-full px-2.5 py-1 text-sm font-medium ${color}`}>{score}/5</span>;
-}
-
-function ListingCard({ listing }: { listing: DisplayListing }) {
-  return (
-    <a
-      href={listing.link || "#"}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-4 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="font-semibold text-black dark:text-zinc-50">{listing.title}</h2>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {listing.company} · {listing.location}
-          </p>
-        </div>
-        <FitBadge score={listing.fitScore} />
-      </div>
-      {listing.fitReasoning && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-500">{listing.fitReasoning}</p>
-      )}
-      <div className="flex items-center gap-2 text-xs text-zinc-400">
-        <span>{listing.status}</span>
-        {listing.datePosted && <span>· posted {new Date(listing.datePosted).toLocaleDateString()}</span>}
-      </div>
-    </a>
-  );
-}
 
 export default async function Home() {
   let listings: DisplayListing[] = [];
@@ -59,14 +25,10 @@ export default async function Home() {
         )}
 
         {!error && listings.length === 0 && (
-          <p className="text-zinc-500">No listings yet. Run the pipeline to fetch and score jobs.</p>
+          <p className="text-zinc-500">No listings yet — they&apos;ll show up here once the scheduled job runs.</p>
         )}
 
-        <div className="flex flex-col gap-3">
-          {listings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
-          ))}
-        </div>
+        {!error && listings.length > 0 && <ListingsBoard listings={listings} />}
       </main>
     </div>
   );
