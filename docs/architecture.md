@@ -25,7 +25,7 @@ Notion — "Job Listings" database     (scored, deduped, lifecycle-managed)
         │
         │  getListings() — server component, revalidate every 5 min
         ▼
-Webapp at job-fit-tracker.vercel.app  (list / detail / location filter)
+Webapp at job-fit-tracker.vercel.app  (list / detail / filters / archive)
 ```
 
 ## Why a webhook instead of polling
@@ -156,7 +156,11 @@ Each run:
    pages/call), not one page at a time.
 7. Marks every processed Inbox row.
 8. Tags listings `Stale` if `Date Posted` is >7 days old.
-9. Archives (Notion soft-delete, recoverable) listings >13 days old.
+9. Archives listings >13 days old (age-based) and, separately, listings
+   scoring below 2.0 that are >2 days old (fast-archive for confidently
+   poor-fit roles) — both by setting the `Archived` checkbox, not Notion's
+   native trash (see the "Archived" property note below and the webapp
+   section's Archive tab).
 
 ### 5. Notion — "Job Listings" database
 
@@ -166,7 +170,12 @@ Added (created_time), Fit Score (1.0-5.0, decimals allowed), Fit Reasoning, Stat
 manually edited by Daniel in Notion; New/Reviewed/Applied/Rejected/Ignored),
 Source Guid, Stale (checkbox), Visa Sponsorship (checkbox — detected by the
 scoring routine from explicit mentions in the posting text only, defaults
-false; rare by design). Data source id:
+false; rare by design), Archived (checkbox — a custom soft-archive flag, not
+Notion's native trash; Notion's public API has no reliable way to query
+pages moved to native trash via a regular integration, so this project uses
+a plain checkbox instead. Set by the scoring routine's age/score-based
+housekeeping, or manually from the webapp's Archive button; either way it's
+reversible with one click from the webapp's Archive tab). Data source id:
 `fa5209fd-9b4e-49fe-bfbe-f6f3fbc0c69f`. Both databases live under the
 [Job Search](https://app.notion.com/p/3c1800d538a7814da15ec4ae519b0f00)
 page.
@@ -177,17 +186,29 @@ Next.js 16 (App Router) + TypeScript + Tailwind v4, deployed on Vercel at
 https://job-fit-tracker.vercel.app, auto-deploying from `main` via the
 GitHub integration (no CLI deploys — see note below).
 
-- `src/lib/notion.ts` — `getListings()`, server-side read via
-  `@notionhq/client`, sorted by Fit Score descending.
-- `src/app/page.tsx` — server component, fetches listings, `revalidate = 300`.
-- `src/components/JobFitApp.tsx` — client component implementing the actual
+- `src/lib/notion.ts` — `getListings()` (active listings, `Archived = false`,
+  sorted by Fit Score descending), `getArchivedListings()` (`Archived =
+  true`, sorted by creation time descending), and `setListingArchived()`
+  (writes the `Archived` checkbox — used by both the manual archive button
+  and the restore button).
+- `src/app/page.tsx` — server component, fetches active listings via
+  `getListings()`, `revalidate = 300`.
+- `src/app/archive/page.tsx` — server component, fetches archived listings
+  via `getArchivedListings()`, renders `ArchiveApp`.
+- `src/app/api/listings/[id]/archive/route.ts` — `POST`, body
+  `{ archived: boolean }` (defaults to `true` if omitted), calls
+  `setListingArchived()`. Used by both the main app's Archive button and the
+  Archive tab's Restore button.
+- `src/components/JobFitApp.tsx` — client component implementing the main
   UI. Responsive breakpoints tracked via a `window.innerWidth` resize
   listener (`isDesktop` at ≥860px, `isTabletUp` at ≥640px):
-  - **Desktop (≥860px):** persistent left sidebar with two independent
-    filter groups — Work Mode (Remote/Hybrid/Onsite, matches `workMode`
-    exactly) and Location (Montreal/Ottawa/Toronto, matches on the raw
-    location text) — each with checkboxes + counts and a combined "Clear
-    all". The two groups AND together; options within a group OR. A
+  - **Desktop (≥860px):** persistent left sidebar with three independent
+    filter groups — Fit Score (the five tier badges: Great/Good/Possible/
+    Weak/Poor, matching `scoreTier()`), Work Mode (Remote/Hybrid/Onsite,
+    matches `workMode` exactly), and Location (Montreal/Ottawa/Toronto,
+    matches on the raw location text) — each with checkboxes + counts and a
+    combined "Clear all". The three groups AND together; options within a
+    group OR. A
     **master-detail split view** — list and detail pane side by side,
     detail pane is `position: sticky`; clicking a card never navigates away
     from the list, it just populates the detail pane (a `×` button clears
@@ -195,9 +216,24 @@ GitHub integration (no CLI deploys — see note below).
     Most recent / Company A–Z) above the list — though visa-sponsorship
     listings always sort first regardless of this setting (see below).
   - **Mobile/tablet (<860px):** a button opens a bottom-sheet with the same
-    two filter groups (no counts shown); selecting a card replaces the list
-    with a full-screen detail overlay with a back button, rather than
+    three filter groups (no counts shown); selecting a card replaces the
+    list with a full-screen detail overlay with a back button, rather than
     showing both at once.
+  - **Archive button** on the detail pane calls the archive API route,
+    optimistically removes the listing from the current session's list
+    (client-side `archivedIds` set layered over the server-fetched `jobs`
+    prop — no refetch needed), and returns to the list view.
+  - **Archive tab** (`/archive`, `ArchiveApp` component) is a deliberately
+    simple, unfiltered, unsorted list of archived listings (reusing the
+    shared badge/theme/icon pieces exported from `JobFitApp.tsx`), each with
+    a Restore button. There's a header link between the main page and
+    `/archive` in both directions.
+  - **Preventing unbounded list growth:** two mechanisms feed the `Archived`
+    checkbox — the scheduled routine's age-based archive (>13 days) and
+    fast-archive (score <2.0 and >2 days old, since a confidently poor-fit
+    role doesn't need the full 13-day grace period), plus the manual Archive
+    button for one-off dismissals. All three are soft/reversible; nothing is
+    ever hard-deleted from Notion by this pipeline.
   - **Visa Sponsorship** gets a deliberately distinct gold badge (not the
     app's red accent) on both the card and detail view, plus a gold card
     border — rare and high-value, so it's designed to be impossible to miss
@@ -243,5 +279,6 @@ GitHub integration (no CLI deploys — see note below).
   account that owns the routine — not the same integration token the
   webapp uses. If that connection ever needs rotating, it's managed at
   https://claude.ai/customize/connectors, not via an env var.
-- No write-back from the webapp to Notion yet (Status is only editable
-  directly in Notion).
+- The webapp can write back to Notion only for the `Archived` checkbox (via
+  the archive API route); `Status` is still only editable directly in
+  Notion.

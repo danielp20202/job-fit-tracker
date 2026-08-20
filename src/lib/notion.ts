@@ -52,12 +52,33 @@ function getClient(): Client {
   return new Client({ auth });
 }
 
-/** Fetches all listings, sorted by fit score (highest first). */
+/** Fetches active (non-archived) listings, sorted by fit score (highest first). */
 export async function getListings(): Promise<DisplayListing[]> {
   const client = getClient();
   const response = await client.dataSources.query({
     data_source_id: DATA_SOURCE_ID,
+    filter: { property: "Archived", checkbox: { equals: false } },
     sorts: [{ property: "Fit Score", direction: "descending" }],
   });
   return response.results.filter((r): r is PageObjectResponse => "properties" in r).map(pageToListing);
+}
+
+/** Fetches archived listings only, most recently added first. */
+export async function getArchivedListings(): Promise<DisplayListing[]> {
+  const client = getClient();
+  const response = await client.dataSources.query({
+    data_source_id: DATA_SOURCE_ID,
+    filter: { property: "Archived", checkbox: { equals: true } },
+    sorts: [{ timestamp: "created_time", direction: "descending" }],
+  });
+  return response.results.filter((r): r is PageObjectResponse => "properties" in r).map(pageToListing);
+}
+
+/** Archives or restores a listing (soft, reversible — a plain checkbox, not Notion's native trash). */
+export async function setListingArchived(pageId: string, archived: boolean): Promise<void> {
+  const client = getClient();
+  await client.pages.update({
+    page_id: pageId,
+    properties: { Archived: { checkbox: archived } } as never,
+  });
 }

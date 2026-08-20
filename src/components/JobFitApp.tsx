@@ -1,19 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import type { DisplayListing } from "@/lib/notion";
 
-const ACCENT = "#ec3013";
-const ACCENT_700 = "#ae1800";
-const GOLD = "#f5b700";
-const GOLD_DARK = "#3d2e00";
+export const ACCENT = "#ec3013";
+export const ACCENT_700 = "#ae1800";
+export const GOLD = "#f5b700";
+export const GOLD_DARK = "#3d2e00";
 const LOCATION_FILTERS = ["Montreal", "Ottawa", "Toronto"] as const;
 type LocationFilter = (typeof LOCATION_FILTERS)[number];
 const WORK_MODE_FILTERS = ["Remote", "Hybrid", "Onsite"] as const;
 type WorkModeFilter = (typeof WORK_MODE_FILTERS)[number];
 type SortBy = "fit" | "recent" | "company";
 
-const FIT_LABELS: Record<number, string> = {
+export const FIT_LABELS: Record<number, string> = {
   5: "Great fit",
   4: "Good fit",
   3: "Possible fit",
@@ -21,35 +22,35 @@ const FIT_LABELS: Record<number, string> = {
   1: "Poor fit",
 };
 
-const BADGE_LIGHT: Record<number, { bg: string; color: string }> = {
+export const BADGE_LIGHT: Record<number, { bg: string; color: string }> = {
   5: { bg: "#dd2b0f", color: "#ffffff" },
   4: { bg: "#ffc4b8", color: "#7c1405" },
   3: { bg: "#d7d3d3", color: "#444141" },
   2: { bg: "#eae7e7", color: "#605d5d" },
   1: { bg: "#f8f4f4", color: "#7d7979" },
 };
-const BADGE_DARK: Record<number, { bg: string; color: string }> = {
+export const BADGE_DARK: Record<number, { bg: string; color: string }> = {
   5: { bg: "#ff9783", color: "#201e1d" },
   4: { bg: "#7c1405", color: "#ffc4b8" },
   3: { bg: "#444141", color: "#d7d3d3" },
   2: { bg: "#2d2b2b", color: "#9b9797" },
   1: { bg: "#201e1d", color: "#605d5d" },
 };
-const BADGE_NEUTRAL = { light: { bg: "#eae7e7", color: "#605d5d" }, dark: { bg: "#3a3737", color: "#9b9797" } };
+export const BADGE_NEUTRAL = { light: { bg: "#eae7e7", color: "#605d5d" }, dark: { bg: "#3a3737", color: "#9b9797" } };
 
-const THEME = {
+export const THEME = {
   light: { bg: "#f3f2f2", surface: "#eae9e9", surfaceAlt: "#ffffff", text: "#201e1d", muted: "rgba(32,30,29,0.6)", divider: "rgba(32,30,29,0.4)" },
   dark: { bg: "#201e1d", surface: "#2d2b2b", surfaceAlt: "#3a3737", text: "#f3f2f2", muted: "rgba(243,242,242,0.6)", divider: "rgba(243,242,242,0.35)" },
 };
 
-function statusColor(status: string, dark: boolean): string {
+export function statusColor(status: string, dark: boolean): string {
   if (status === "New") return dark ? "#ff9783" : "#ae1800";
   if (status === "Applied") return dark ? "#ffc4b8" : "#dd2b0f";
   if (status === "Reviewed") return dark ? "#d7d3d3" : "#605d5d";
   return dark ? "#605d5d" : "#9b9797"; // Rejected / Ignored
 }
 
-function daysAgoLabel(dateStr: string | null): string {
+export function daysAgoLabel(dateStr: string | null): string {
   if (!dateStr) return "Date unknown";
   const days = Math.round((Date.now() - new Date(dateStr).getTime()) / 86400000);
   if (days <= 0) return "Today";
@@ -60,11 +61,11 @@ function daysAgoLabel(dateStr: string | null): string {
 }
 
 /** Fit scores can be decimals (e.g. 4.9); badge color/label buckets are still 1-5 integer tiers. */
-function scoreTier(score: number): number {
+export function scoreTier(score: number): number {
   return Math.min(5, Math.max(1, Math.round(score)));
 }
 
-function formatScore(score: number): string {
+export function formatScore(score: number): string {
   return Number.isInteger(score) ? String(score) : score.toFixed(1);
 }
 
@@ -76,7 +77,14 @@ function matchesWorkModeFilter(job: DisplayListing, filter: WorkModeFilter): boo
   return job.workMode === filter;
 }
 
-function PinIcon({ color, size = 8 }: { color: string; size?: number }) {
+const FIT_SCORE_FILTERS = [5, 4, 3, 2, 1] as const;
+type FitScoreFilter = (typeof FIT_SCORE_FILTERS)[number];
+
+function matchesFitScoreFilter(job: DisplayListing, tier: FitScoreFilter): boolean {
+  return job.fitScore !== null && scoreTier(job.fitScore) === tier;
+}
+
+export function PinIcon({ color, size = 8 }: { color: string; size?: number }) {
   return (
     <svg width={size} height={size * 1.2} viewBox="0 0 24 24" fill="none">
       <path d="M12 22s7-7.58 7-12.5A7 7 0 105 9.5C5 14.42 12 22 12 22z" stroke={color} strokeWidth="2.4" strokeLinejoin="round" />
@@ -85,7 +93,7 @@ function PinIcon({ color, size = 8 }: { color: string; size?: number }) {
   );
 }
 
-function BuildingIcon({ color }: { color: string }) {
+export function BuildingIcon({ color }: { color: string }) {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
       <path d="M4 4h16v4H4V4zm0 6h16v10H4V10z" stroke={color} strokeWidth="1.8" strokeLinejoin="round" />
@@ -93,7 +101,7 @@ function BuildingIcon({ color }: { color: string }) {
   );
 }
 
-function ClockIcon({ color }: { color: string }) {
+export function ClockIcon({ color }: { color: string }) {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.8" />
@@ -102,7 +110,7 @@ function ClockIcon({ color }: { color: string }) {
   );
 }
 
-function StarIcon({ fill }: { fill: string }) {
+export function StarIcon({ fill }: { fill: string }) {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill={fill}>
       <path d="M12 2l2.9 6.3 6.9.9-5 4.8 1.3 6.8L12 17.7 5.9 20.8l1.3-6.8-5-4.8 6.9-.9L12 2z" />
@@ -110,7 +118,7 @@ function StarIcon({ fill }: { fill: string }) {
   );
 }
 
-function ExternalLinkIcon({ color }: { color: string }) {
+export function ExternalLinkIcon({ color }: { color: string }) {
   return (
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
       <path d="M14 5h5v5M19 5L10 14M9 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-3" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -135,7 +143,7 @@ function ChevronDownIcon({ color }: { color: string }) {
 }
 
 /** Rare and high-value, so deliberately distinct from the rest of the (red-only) palette — gold, not accent red. */
-function VisaSponsorshipBadge({ size = "normal" }: { size?: "normal" | "large" }) {
+export function VisaSponsorshipBadge({ size = "normal" }: { size?: "normal" | "large" }) {
   const fontSize = size === "large" ? 12 : 10.5;
   const padding = size === "large" ? "5px 12px" : "3px 9px";
   return (
@@ -160,16 +168,16 @@ function VisaSponsorshipBadge({ size = "normal" }: { size?: "normal" | "large" }
 }
 
 /** btn-secondary look, matching the Modernist design system's button classes (replicated as inline styles, see docs/architecture.md on why we don't import the raw CSS). */
-function secondaryBtnStyle(theme: typeof THEME.light): React.CSSProperties {
+export function secondaryBtnStyle(theme: typeof THEME.light): React.CSSProperties {
   return { border: `1.5px solid ${theme.divider}`, background: "transparent", color: theme.text, fontWeight: 800, cursor: "pointer" };
 }
-function ghostBtnStyle(color: string): React.CSSProperties {
+export function ghostBtnStyle(color: string): React.CSSProperties {
   return { border: "none", background: "none", color, fontWeight: 800, cursor: "pointer", padding: 0 };
 }
-function primaryBtnStyle(): React.CSSProperties {
+export function primaryBtnStyle(): React.CSSProperties {
   return { border: "none", background: ACCENT, color: "#fff", fontWeight: 800, cursor: "pointer" };
 }
-function tagStyle(theme: typeof THEME.light): React.CSSProperties {
+export function tagStyle(theme: typeof THEME.light): React.CSSProperties {
   return { display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700, padding: "3px 9px", background: theme.surfaceAlt, color: theme.muted };
 }
 
@@ -209,7 +217,7 @@ function FilterOptionRow({ loc, theme, size = 16 }: { loc: FilterOption; theme: 
   );
 }
 
-function FitBadge({ score, dark, size = 56 }: { score: number | null; dark: boolean; size?: number }) {
+export function FitBadge({ score, dark, size = 56 }: { score: number | null; dark: boolean; size?: number }) {
   const badges = dark ? BADGE_DARK : BADGE_LIGHT;
   const { bg, color } = score !== null ? badges[scoreTier(score)] : dark ? BADGE_NEUTRAL.dark : BADGE_NEUTRAL.light;
   return (
@@ -328,6 +336,8 @@ function DetailPane({
   showClose,
   onBack,
   onClose,
+  onArchive,
+  archiving,
 }: {
   job: DisplayListing;
   theme: typeof THEME.light;
@@ -337,6 +347,8 @@ function DetailPane({
   showClose: boolean;
   onBack: () => void;
   onClose: () => void;
+  onArchive: () => void;
+  archiving: boolean;
 }) {
   const fitLabel = job.fitScore !== null ? FIT_LABELS[scoreTier(job.fitScore)] : "Unscored";
 
@@ -424,6 +436,15 @@ function DetailPane({
           Visit company
         </a>
       )}
+      <button
+        type="button"
+        className="jft-btn"
+        onClick={onArchive}
+        disabled={archiving}
+        style={{ display: "block", width: "100%", textAlign: "left", marginTop: 10, padding: "13px 16px", opacity: archiving ? 0.6 : 1, ...secondaryBtnStyle(theme) }}
+      >
+        {archiving ? "Archiving…" : "Archive"}
+      </button>
     </div>
   );
 }
@@ -432,12 +453,14 @@ function FilterSheet({
   theme,
   workModes,
   locations,
+  fitScores,
   onClear,
   onClose,
 }: {
   theme: typeof THEME.light;
   workModes: FilterOption[];
   locations: FilterOption[];
+  fitScores: FilterOption[];
   onClear: () => void;
   onClose: () => void;
 }) {
@@ -450,6 +473,13 @@ function FilterSheet({
           <button type="button" className="jft-btn" onClick={onClose} style={{ ...ghostBtnStyle(theme.text), fontSize: 20, lineHeight: 1 }}>
             &times;
           </button>
+        </div>
+
+        <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: "0.04em", textTransform: "uppercase", color: theme.muted, margin: "16px 0 4px" }}>Fit Score</div>
+        <div>
+          {fitScores.map((fs) => (
+            <FilterOptionRow key={fs.label} loc={fs} theme={theme} size={19} />
+          ))}
         </div>
 
         <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: "0.04em", textTransform: "uppercase", color: theme.muted, margin: "16px 0 4px" }}>Work Mode</div>
@@ -479,13 +509,17 @@ function FilterSheet({
   );
 }
 
-export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
+export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
   const [dark, setDark] = useState(false);
   const [screen, setScreen] = useState<"list" | "detail">("list");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
+  const [archiving, setArchiving] = useState(false);
+  const allJobs = useMemo(() => jobs.filter((j) => !archivedIds.has(j.id)), [jobs, archivedIds]);
   const [activeLocationFilters, setActiveLocationFilters] = useState<Set<LocationFilter>>(new Set());
   const [activeWorkModeFilters, setActiveWorkModeFilters] = useState<Set<WorkModeFilter>>(new Set());
+  const [activeFitScoreFilters, setActiveFitScoreFilters] = useState<Set<FitScoreFilter>>(new Set());
   const [sortBy, setSortBy] = useState<SortBy>("fit");
   const [width, setWidth] = useState(1200);
 
@@ -517,20 +551,30 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
       return next;
     });
   };
+  const toggleFitScoreFilter = (filter: FitScoreFilter) => {
+    setActiveFitScoreFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(filter)) next.delete(filter);
+      else next.add(filter);
+      return next;
+    });
+  };
   const clearAllFilters = () => {
     setActiveLocationFilters(new Set());
     setActiveWorkModeFilters(new Set());
+    setActiveFitScoreFilters(new Set());
   };
 
-  const activeFilterCount = activeLocationFilters.size + activeWorkModeFilters.size;
+  const activeFilterCount = activeLocationFilters.size + activeWorkModeFilters.size + activeFitScoreFilters.size;
 
   const filtered = useMemo(() => {
     return allJobs.filter((job) => {
       const locationOk = activeLocationFilters.size === 0 || [...activeLocationFilters].some((f) => matchesLocationFilter(job, f));
       const workModeOk = activeWorkModeFilters.size === 0 || [...activeWorkModeFilters].some((f) => matchesWorkModeFilter(job, f));
-      return locationOk && workModeOk;
+      const fitScoreOk = activeFitScoreFilters.size === 0 || [...activeFitScoreFilters].some((f) => matchesFitScoreFilter(job, f));
+      return locationOk && workModeOk && fitScoreOk;
     });
-  }, [allJobs, activeLocationFilters, activeWorkModeFilters]);
+  }, [allJobs, activeLocationFilters, activeWorkModeFilters, activeFitScoreFilters]);
 
   const sorted = useMemo(() => {
     const list = [...filtered];
@@ -550,7 +594,10 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
   }, [filtered, sortBy]);
 
   const selectedJob = allJobs.find((j) => j.id === selectedJobId) ?? null;
-  const filterLabel = activeFilterCount === 0 ? "All" : [...activeWorkModeFilters, ...activeLocationFilters].join(", ");
+  const filterLabel =
+    activeFilterCount === 0
+      ? "All"
+      : [...activeFitScoreFilters].map((t) => FIT_LABELS[t]).concat([...activeWorkModeFilters], [...activeLocationFilters]).join(", ");
   const isEmpty = sorted.length === 0;
   const rowPad = "16px 20px";
 
@@ -568,6 +615,13 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
     toggle: () => toggleLocationFilter(label),
   }));
 
+  const fitScores: FilterOption[] = FIT_SCORE_FILTERS.map((tier) => ({
+    label: FIT_LABELS[tier],
+    isChecked: activeFitScoreFilters.has(tier),
+    count: allJobs.filter((j) => matchesFitScoreFilter(j, tier)).length,
+    toggle: () => toggleFitScoreFilter(tier),
+  }));
+
   const screenList = isSplit ? true : screen === "list";
   const screenDetail = !!selectedJob && (isSplit ? true : screen === "detail");
 
@@ -580,6 +634,17 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
     setSelectedJobId(null);
     setScreen("list");
   };
+  const archiveJob = async (id: string) => {
+    setArchiving(true);
+    try {
+      await fetch(`/api/listings/${id}/archive`, { method: "POST" });
+      setArchivedIds((prev) => new Set(prev).add(id));
+      setSelectedJobId(null);
+      setScreen("list");
+    } finally {
+      setArchiving(false);
+    }
+  };
 
   const listMaxWidth = isSplit ? (width >= 1150 ? "520px" : "400px") : "none";
   const detailPad = isSplit ? "0 0 40px" : "58px 20px 40px";
@@ -591,7 +656,15 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
           <h6 style={{ color: ACCENT, margin: "0 0 3px", fontSize: 11 }}>Personal tool</h6>
           <h1 style={{ fontSize: 20, margin: 0, fontWeight: 800 }}>Job Fit Tracker</h1>
         </div>
-        <button type="button" className="jft-btn" onClick={() => setDark((d) => !d)} style={{ width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", ...secondaryBtnStyle(theme) }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Link
+            href="/archive"
+            className="jft-btn"
+            style={{ height: 38, display: "flex", alignItems: "center", padding: "0 14px", textDecoration: "none", fontSize: 13, fontWeight: 700, ...secondaryBtnStyle(theme) }}
+          >
+            Archive
+          </Link>
+          <button type="button" className="jft-btn" onClick={() => setDark((d) => !d)} style={{ width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", ...secondaryBtnStyle(theme) }}>
           {dark ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="5" stroke={theme.text} strokeWidth="2" />
@@ -607,7 +680,8 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
               <path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z" stroke={theme.text} strokeWidth="2" strokeLinejoin="round" />
             </svg>
           )}
-        </button>
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: 24, maxWidth: 1180, margin: "0 auto", padding: 24 }}>
@@ -626,7 +700,11 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
               </button>
             )}
           </div>
-          <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: "0.04em", textTransform: "uppercase", color: theme.muted, marginBottom: 10 }}>Work Mode</div>
+          <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: "0.04em", textTransform: "uppercase", color: theme.muted, marginBottom: 10 }}>Fit Score</div>
+          {fitScores.map((fs) => (
+            <FilterOptionRow key={fs.label} loc={fs} theme={theme} size={16} />
+          ))}
+          <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: "0.04em", textTransform: "uppercase", color: theme.muted, margin: "14px 0 10px" }}>Work Mode</div>
           {workModes.map((wm) => (
             <FilterOptionRow key={wm.label} loc={wm} theme={theme} size={16} />
           ))}
@@ -723,7 +801,18 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
             }}
           >
             {screenDetail && selectedJob ? (
-              <DetailPane job={selectedJob} theme={theme} dark={dark} pad={detailPad} showBack={!isSplit} showClose={isSplit} onBack={goBack} onClose={clearSelection} />
+              <DetailPane
+                job={selectedJob}
+                theme={theme}
+                dark={dark}
+                pad={detailPad}
+                showBack={!isSplit}
+                showClose={isSplit}
+                onBack={goBack}
+                onClose={clearSelection}
+                onArchive={() => archiveJob(selectedJob.id)}
+                archiving={archiving}
+              />
             ) : (
               isSplit &&
               !selectedJob && (
@@ -736,7 +825,7 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
         </div>
       </div>
 
-      {sheetOpen && <FilterSheet theme={theme} workModes={workModes} locations={locations} onClear={clearAllFilters} onClose={() => setSheetOpen(false)} />}
+      {sheetOpen && <FilterSheet theme={theme} workModes={workModes} locations={locations} fitScores={fitScores} onClear={clearAllFilters} onClose={() => setSheetOpen(false)} />}
     </div>
   );
 }
