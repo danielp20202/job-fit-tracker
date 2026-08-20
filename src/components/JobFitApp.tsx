@@ -29,25 +29,17 @@ export const BADGE_LIGHT: Record<number, { bg: string; color: string }> = {
   2: { bg: "#eae7e7", color: "#605d5d" },
   1: { bg: "#f8f4f4", color: "#7d7979" },
 };
-export const BADGE_DARK: Record<number, { bg: string; color: string }> = {
-  5: { bg: "#ff9783", color: "#201e1d" },
-  4: { bg: "#7c1405", color: "#ffc4b8" },
-  3: { bg: "#444141", color: "#d7d3d3" },
-  2: { bg: "#2d2b2b", color: "#9b9797" },
-  1: { bg: "#201e1d", color: "#605d5d" },
-};
-export const BADGE_NEUTRAL = { light: { bg: "#eae7e7", color: "#605d5d" }, dark: { bg: "#3a3737", color: "#9b9797" } };
+export const BADGE_NEUTRAL = { bg: "#eae7e7", color: "#605d5d" };
 
 export const THEME = {
   light: { bg: "#f3f2f2", surface: "#eae9e9", surfaceAlt: "#ffffff", text: "#201e1d", muted: "rgba(32,30,29,0.6)", divider: "rgba(32,30,29,0.4)" },
-  dark: { bg: "#201e1d", surface: "#2d2b2b", surfaceAlt: "#3a3737", text: "#f3f2f2", muted: "rgba(243,242,242,0.6)", divider: "rgba(243,242,242,0.35)" },
 };
 
-export function statusColor(status: string, dark: boolean): string {
-  if (status === "New") return dark ? "#ff9783" : "#ae1800";
-  if (status === "Applied") return dark ? "#ffc4b8" : "#dd2b0f";
-  if (status === "Reviewed") return dark ? "#d7d3d3" : "#605d5d";
-  return dark ? "#605d5d" : "#9b9797"; // Rejected / Ignored
+export function statusColor(status: string): string {
+  if (status === "New") return "#ae1800";
+  if (status === "Applied") return "#dd2b0f";
+  if (status === "Reviewed") return "#605d5d";
+  return "#9b9797"; // Rejected / Ignored
 }
 
 export function daysAgoLabel(dateStr: string | null): string {
@@ -217,9 +209,8 @@ function FilterOptionRow({ loc, theme, size = 16 }: { loc: FilterOption; theme: 
   );
 }
 
-export function FitBadge({ score, dark, size = 56 }: { score: number | null; dark: boolean; size?: number }) {
-  const badges = dark ? BADGE_DARK : BADGE_LIGHT;
-  const { bg, color } = score !== null ? badges[scoreTier(score)] : dark ? BADGE_NEUTRAL.dark : BADGE_NEUTRAL.light;
+export function FitBadge({ score, size = 56 }: { score: number | null; size?: number }) {
+  const { bg, color } = score !== null ? BADGE_LIGHT[scoreTier(score)] : BADGE_NEUTRAL;
   return (
     <div style={{ width: size, height: size, flex: "none", background: bg, color, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
       <div style={{ fontWeight: 800, fontSize: size * 0.39, lineHeight: 1 }}>{score !== null ? formatScore(score) : "–"}</div>
@@ -231,20 +222,17 @@ export function FitBadge({ score, dark, size = 56 }: { score: number | null; dar
 function JobCard({
   job,
   theme,
-  dark,
   active,
   rowPad,
   onOpen,
 }: {
   job: DisplayListing;
   theme: typeof THEME.light;
-  dark: boolean;
   active: boolean;
   rowPad: string;
   onOpen: () => void;
 }) {
-  const badges = dark ? BADGE_DARK : BADGE_LIGHT;
-  const badgeBg = job.fitScore !== null ? badges[scoreTier(job.fitScore)].bg : (dark ? BADGE_NEUTRAL.dark : BADGE_NEUTRAL.light).bg;
+  const badgeBg = job.fitScore !== null ? BADGE_LIGHT[scoreTier(job.fitScore)].bg : BADGE_NEUTRAL.bg;
   return (
     <div
       onClick={onOpen}
@@ -315,8 +303,8 @@ function JobCard({
             letterSpacing: "0.05em",
             textTransform: "uppercase",
             padding: "3px 8px",
-            border: `1px solid ${statusColor(job.status, dark)}`,
-            color: statusColor(job.status, dark),
+            border: `1px solid ${statusColor(job.status)}`,
+            color: statusColor(job.status),
             marginLeft: "auto",
           }}
         >
@@ -330,7 +318,6 @@ function JobCard({
 function DetailPane({
   job,
   theme,
-  dark,
   pad,
   showBack,
   showClose,
@@ -338,10 +325,10 @@ function DetailPane({
   onClose,
   onArchive,
   archiving,
+  archiveError,
 }: {
   job: DisplayListing;
   theme: typeof THEME.light;
-  dark: boolean;
   pad: string;
   showBack: boolean;
   showClose: boolean;
@@ -349,6 +336,7 @@ function DetailPane({
   onClose: () => void;
   onArchive: () => void;
   archiving: boolean;
+  archiveError: boolean;
 }) {
   const fitLabel = job.fitScore !== null ? FIT_LABELS[scoreTier(job.fitScore)] : "Unscored";
 
@@ -403,7 +391,7 @@ function DetailPane({
       <div style={{ height: 2, background: theme.divider, margin: "20px 0" }} />
 
       <div style={{ display: "flex", gap: 16 }}>
-        <FitBadge score={job.fitScore} dark={dark} size={64} />
+        <FitBadge score={job.fitScore} size={64} />
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 800, fontSize: 14 }}>{fitLabel}</div>
           <p style={{ fontSize: 14, lineHeight: 1.55, margin: "5px 0 0", opacity: 0.88 }}>{job.fitReasoning}</p>
@@ -418,7 +406,7 @@ function DetailPane({
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", fontSize: 13 }}>
         <span style={{ color: theme.muted }}>Status</span>
-        <span style={{ fontWeight: 700, color: statusColor(job.status, dark) }}>{job.status}</span>
+        <span style={{ fontWeight: 700, color: statusColor(job.status) }}>{job.status}</span>
       </div>
 
       {job.link && (
@@ -436,6 +424,7 @@ function DetailPane({
           Visit company
         </a>
       )}
+      {archiveError && <div style={{ fontSize: 12, color: ACCENT_700, marginTop: 10 }}>Couldn&apos;t archive — try again.</div>}
       <button
         type="button"
         className="jft-btn"
@@ -510,12 +499,12 @@ function FilterSheet({
 }
 
 export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
-  const [dark, setDark] = useState(false);
   const [screen, setScreen] = useState<"list" | "detail">("list");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
   const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState(false);
   const allJobs = useMemo(() => jobs.filter((j) => !archivedIds.has(j.id)), [jobs, archivedIds]);
   const [activeLocationFilters, setActiveLocationFilters] = useState<Set<LocationFilter>>(new Set());
   const [activeWorkModeFilters, setActiveWorkModeFilters] = useState<Set<WorkModeFilter>>(new Set());
@@ -531,7 +520,7 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const theme = dark ? THEME.dark : THEME.light;
+  const theme = THEME.light;
   const isDesktop = width >= 860;
   const isSplit = isDesktop;
   const isTabletUp = width >= 640;
@@ -640,11 +629,15 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
   };
   const archiveJob = async (id: string) => {
     setArchiving(true);
+    setArchiveError(false);
     try {
-      await fetch(`/api/listings/${id}/archive`, { method: "POST" });
+      const res = await fetch(`/api/listings/${id}/archive`, { method: "POST" });
+      if (!res.ok) throw new Error("Archive failed");
       setArchivedIds((prev) => new Set(prev).add(id));
       setSelectedJobId(null);
       setScreen("list");
+    } catch {
+      setArchiveError(true);
     } finally {
       setArchiving(false);
     }
@@ -668,23 +661,6 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
           >
             Archive
           </Link>
-          <button type="button" className="jft-btn" onClick={() => setDark((d) => !d)} style={{ width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", ...secondaryBtnStyle(theme) }}>
-          {dark ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="5" stroke={theme.text} strokeWidth="2" />
-              <g stroke={theme.text} strokeWidth="2" strokeLinecap="round">
-                <line x1="12" y1="1" x2="12" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="23" />
-                <line x1="1" y1="12" x2="3" y2="12" />
-                <line x1="21" y1="12" x2="23" y2="12" />
-              </g>
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z" stroke={theme.text} strokeWidth="2" strokeLinejoin="round" />
-            </svg>
-          )}
-          </button>
         </div>
       </div>
 
@@ -809,7 +785,6 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
                         key={job.id}
                         job={job}
                         theme={theme}
-                        dark={dark}
                         active={isSplit && job.id === selectedJobId}
                         rowPad={rowPad}
                         onOpen={() => openDetail(job.id)}
@@ -841,7 +816,6 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
               <DetailPane
                 job={selectedJob}
                 theme={theme}
-                dark={dark}
                 pad={detailPad}
                 showBack={!isSplit}
                 showClose={isSplit}
@@ -849,6 +823,7 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
                 onClose={clearSelection}
                 onArchive={() => archiveJob(selectedJob.id)}
                 archiving={archiving}
+                archiveError={archiveError}
               />
             ) : (
               isSplit &&

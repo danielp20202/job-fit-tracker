@@ -244,8 +244,17 @@ GitHub integration (no CLI deploys — see note below).
     Mobile.dc.html," Modernist design system — Archivo type, sharp corners,
     red accent `#ec3013`, thick dividers), re-imported and re-implemented
     once to add sort-by and the desktop split view (the original import was
-    mobile-only). Manual light/dark toggle (not tied to system preference,
-    matching the original design spec).
+    mobile-only). Light theme only — the original design's dark mode toggle
+    was removed as unnecessary complexity for a single-user personal tool.
+  - **Search box** above the list on both the main page and `/archive`,
+    client-side substring match against title/company/location. On the main
+    page it combines (ANDs) with the three filter groups; on `/archive` it's
+    the only refinement, consistent with the Archive tab's simple-list
+    design.
+  - Archive/Restore both check the fetch response status before applying
+    their optimistic UI update — a failed write shows an inline "Couldn't
+    archive/restore — try again" message next to the button rather than
+    silently pretending the Notion write succeeded.
   - Two layout bugs existed in the source design and were fixed during
     implementation, not present in the design file itself: the row
     containing the mobile filter button needs `flexWrap: wrap` (without it,

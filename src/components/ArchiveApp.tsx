@@ -8,7 +8,6 @@ import {
   ACCENT_700,
   THEME,
   BADGE_LIGHT,
-  BADGE_DARK,
   BADGE_NEUTRAL,
   scoreTier,
   formatScore,
@@ -25,12 +24,11 @@ import {
 } from "@/components/JobFitApp";
 
 export function ArchiveApp({ jobs }: { jobs: DisplayListing[] }) {
-  const [dark] = useState(false);
   const [restoredIds, setRestoredIds] = useState<Set<string>>(new Set());
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const theme = dark ? THEME.dark : THEME.light;
-  const badges = dark ? BADGE_DARK : BADGE_LIGHT;
+  const [errorId, setErrorId] = useState<string | null>(null);
+  const theme = THEME.light;
 
   const notRestored = jobs.filter((j) => !restoredIds.has(j.id));
   const q = searchQuery.trim().toLowerCase();
@@ -41,13 +39,17 @@ export function ArchiveApp({ jobs }: { jobs: DisplayListing[] }) {
 
   const restore = async (id: string) => {
     setRestoringId(id);
+    setErrorId(null);
     try {
-      await fetch(`/api/listings/${id}/archive`, {
+      const res = await fetch(`/api/listings/${id}/archive`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ archived: false }),
       });
+      if (!res.ok) throw new Error("Restore failed");
       setRestoredIds((prev) => new Set(prev).add(id));
+    } catch {
+      setErrorId(id);
     } finally {
       setRestoringId(null);
     }
@@ -105,7 +107,7 @@ export function ArchiveApp({ jobs }: { jobs: DisplayListing[] }) {
         </div>
 
         <div style={{ fontSize: 13, color: theme.muted, marginBottom: 16 }}>
-          {jobs.length === 0
+          {notRestored.length === 0
             ? "No archived listings."
             : visible.length === 0
               ? "No archived listings match your search."
@@ -114,7 +116,7 @@ export function ArchiveApp({ jobs }: { jobs: DisplayListing[] }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {visible.map((job) => {
-            const badgeBg = job.fitScore !== null ? badges[scoreTier(job.fitScore)].bg : (dark ? BADGE_NEUTRAL.dark : BADGE_NEUTRAL.light).bg;
+            const badgeBg = job.fitScore !== null ? BADGE_LIGHT[scoreTier(job.fitScore)].bg : BADGE_NEUTRAL.bg;
             return (
               <div key={job.id} style={{ border: `1.5px solid ${theme.divider}`, padding: "16px 20px" }}>
                 {job.visaSponsorship && (
@@ -159,6 +161,9 @@ export function ArchiveApp({ jobs }: { jobs: DisplayListing[] }) {
                   </a>
                 )}
 
+                {errorId === job.id && (
+                  <div style={{ fontSize: 12, color: ACCENT_700, marginTop: 10 }}>Couldn&apos;t restore — try again.</div>
+                )}
                 <button
                   type="button"
                   className="jft-btn"
