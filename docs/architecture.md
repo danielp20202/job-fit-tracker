@@ -1,31 +1,37 @@
 # Architecture
 
 job-fit-tracker is a personal job-search pipeline for Daniel Pinzon. It pulls
-Customer Success / Account Management job postings from LinkedIn, scores each
-one against Daniel's fit rubric, and displays the results in a mobile-first
-webapp. Everything runs unattended except reviewing the results.
+Customer Success / Account Management job postings from LinkedIn and from
+ASGC's game-industry job board, scores each one against Daniel's fit rubric,
+and displays the results in a mobile-first webapp. Everything runs unattended
+except reviewing the results.
 
 ## Pipeline overview
 
 ```
-LinkedIn searches (multiple, via rss.app)
-        │  rss.app polls each search URL, diffs against what it last saw
-        ▼
-rss.app webhooks (fire on new items only, real-time)
-        │  POST with items_new[]
-        ▼
-POST /api/webhooks/rss  (this repo, deployed on Vercel)
-        │  verifies HMAC-SHA256 signature, writes raw rows
-        ▼
-Notion — "Job Inbox" database        (unprocessed, unscored)
-        │
-        │  scheduled cloud routine, 3x/day
-        ▼
-Notion — "Job Listings" database     (scored, deduped, lifecycle-managed)
-        │
-        │  getListings() — server component, revalidate every 5 min
-        ▼
-Webapp at job-fit-tracker.vercel.app  (list / detail / filters / archive)
+LinkedIn searches (multiple, via rss.app)        ASGC job board API
+        │  rss.app polls, diffs against                 │  Vercel Cron, once/day (this
+        │  what it last saw                              │  repo — has full internet
+        ▼                                                │  access, unlike the sandboxed
+rss.app webhooks (fire on new items only)                │  scoring routine below)
+        │  POST with items_new[]                          │  filters to Canada + Customer
+        ▼                                                │  & Community Support, dedupes,
+POST /api/webhooks/rss  (this repo, on Vercel)            │  writes structured rows
+        │  verifies HMAC-SHA256 signature                │
+        ▼                                                ▼
+        └──────────────────► Notion — "Job Inbox" database ◄──────────────────┘
+                              (unprocessed, unscored)
+                                        │
+                                        │  scheduled cloud routine, 3x/day
+                                        ▼
+                        Notion — "Job Listings" database
+                        (scored, deduped, lifecycle-managed)
+                                        │
+                                        │  getListings() — server component,
+                                        │  revalidate every 5 min
+                                        ▼
+                Webapp at job-fit-tracker.vercel.app
+                (list / detail / filters / archive)
 ```
 
 ## Why a webhook instead of polling
@@ -38,6 +44,12 @@ Webhooks solve this: rss.app pushes each new item the moment it's detected,
 independent of feed-cap truncation or how often anything else runs. This
 decouples **capture** (real-time, cheap, always-on) from **scoring**
 (batched, 3x/day, the actual cost driver).
+
+This doesn't apply to the ASGC source (see component 3 below), which is
+polled daily instead — it has no feed-cap truncation risk (the API always
+returns the complete dataset, not a capped recent-items window) and the
+site itself states it's only "Updated Daily," so daily polling loses
+nothing a webhook would have caught sooner.
 
 ## Components
 
@@ -92,13 +104,51 @@ secret is stale.
 No scoring happens in this route — it's intentionally cheap and does
 nothing but capture.
 
-### 3. Notion — "Job Inbox" database
+### 3. ASGC poller — `src/lib/asgc.ts`, `src/app/api/cron/asgc-poll/route.ts`
 
-Staging area. Schema: Title, URL, Description, Date Published, Feed Title,
-Processed (checkbox), Received At. Data source id:
+A second, independent Job Inbox source: ASGC's game-industry job board
+(https://jobs.asgc.gg/). Added because it's relevant (games-industry CS
+roles line up with Daniel's Unity/gaming background) but had no way to
+filter via rss.app — investigated directly and confirmed the site is a
+client-rendered SPA where every filter (category, location, etc.) is
+applied in the browser only; neither the page URL nor its backing
+`/api/job-listings` JSON endpoint honor any filter query params — both
+always return the entire dataset (~68K rows, ~39MB as of this writing).
+There's no filtered URL to hand an RSS scraper, so this bypasses rss.app
+entirely:
+
+- A Vercel Cron job (`vercel.json`, daily at 13:00 UTC) hits
+  `/api/cron/asgc-poll`, protected by a `CRON_SECRET` bearer token Vercel
+  sends automatically once that env var is set.
+- The route fetches the full ASGC dataset (the webapp has unrestricted
+  outbound internet access, unlike the sandboxed scoring routine below —
+  this is the same reason the archive API route can talk to Notion
+  directly), filters client-side in code for `overallCategory ===
+  "Customer & Community Support"` AND `country === "Canada"` (~40 listings
+  at any given time, not the full 835 global Customer & Community Support
+  count — Daniel wanted this source scoped to Canada only), and maps each
+  match into the same shape the rss.app webhook produces.
+- Dedup: before writing, it queries Job Inbox for every URL already
+  ingested under this feed's `Feed Title` (`getInboxUrlsForFeed()` in
+  `src/lib/notion.ts`) and only creates pages for URLs not already present
+  — cheap since this feed's total volume is small and grows slowly.
+- ASGC's API doesn't expose real posting description text, so the
+  `Description` written to Job Inbox is a short, explicitly labeled
+  synthetic one (`Company: X`, `Location: Y — On-site/Hybrid/Remote`,
+  `Job Type`, `Experience`) rather than scraped prose — the scoring
+  routine's prompt was updated to recognize rows from this feed (by
+  `Feed Title` starting with "ASGC") and read the labels directly instead
+  of trying to LinkedIn-parse them, and treats their thin description as
+  the normal low-confidence case the rubric already handles.
+
+### 4. Notion — "Job Inbox" database
+
+Staging area, fed by both the rss.app webhook and the ASGC poller above.
+Schema: Title, URL, Description, Date Published, Feed Title, Processed
+(checkbox), Received At. Data source id:
 `0c47226a-b5f5-45e2-9864-e8f882893535`.
 
-### 4. Scheduled cloud routine — `job-fit-tracker-scorer`
+### 5. Scheduled cloud routine — `job-fit-tracker-scorer`
 
 Not code in this repo — a cloud routine created via Claude Code's
 `/schedule` feature (`RemoteTrigger` API), routine id
@@ -162,7 +212,7 @@ Each run:
    native trash (see the "Archived" property note below and the webapp
    section's Archive tab).
 
-### 5. Notion — "Job Listings" database
+### 6. Notion — "Job Listings" database
 
 The scored, canonical dataset the webapp reads. Schema: Title, Company,
 Company Link, Location, Work Mode (select), Pay, Link, Date Posted, Date
@@ -180,7 +230,7 @@ reversible with one click from the webapp's Archive tab). Data source id:
 [Job Search](https://app.notion.com/p/3c1800d538a7814da15ec4ae519b0f00)
 page.
 
-### 6. Webapp — this repo
+### 7. Webapp — this repo
 
 Next.js 16 (App Router) + TypeScript + Tailwind v4, deployed on Vercel at
 https://job-fit-tracker.vercel.app, auto-deploying from `main` via the
@@ -272,10 +322,13 @@ GitHub integration (no CLI deploys — see note below).
   managed via the Vercel dashboard or `vercel env`, but deployment itself
   should always go through a git push.
 - Required Vercel env vars: `NOTION_API_KEY`, `NOTION_DATA_SOURCE_ID`,
-  `NOTION_INBOX_DATA_SOURCE_ID`, `RSS_APP_WEBHOOK_SECRET` — see
-  `.env.example`.
+  `NOTION_INBOX_DATA_SOURCE_ID`, `RSS_APP_WEBHOOK_SECRET`, `CRON_SECRET` —
+  see `.env.example`.
 - The webhook URL to enter in rss.app for every feed:
   `https://job-fit-tracker.vercel.app/api/webhooks/rss`.
+- `vercel.json` defines the ASGC poller's cron schedule — Vercel Cron Jobs
+  are registered from that file on every deploy, no separate dashboard
+  setup needed beyond setting `CRON_SECRET`.
 
 ## Known simplifications / things worth revisiting
 

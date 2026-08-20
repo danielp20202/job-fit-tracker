@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/asgc-poll",
+      "schedule": "0 13 * * *"
+    }
+  ]
+}
