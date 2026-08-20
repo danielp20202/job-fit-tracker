@@ -34,6 +34,14 @@ export async function POST(request: NextRequest) {
   const secret = process.env.RSS_APP_WEBHOOK_SECRET;
   if (secret) {
     const signature = request.headers.get("rssapp-signature");
+    const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+    console.log("[rss-webhook-debug]", {
+      allHeaders: Array.from(request.headers.keys()),
+      rssappSignatureHeader: signature,
+      expectedHex: expected,
+      bodyPreview: rawBody.slice(0, 300),
+      bodyLength: rawBody.length,
+    });
     if (!verifySignature(rawBody, signature, secret)) {
       return NextResponse.json({ error: "invalid signature" }, { status: 401 });
     }
