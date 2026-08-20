@@ -88,8 +88,9 @@ back. Worth remembering if this ever needs re-diagnosing: a 401 with a
 *correct* secret almost certainly means a scheme mismatch, not a bad
 secret — verify by fetching a real request's headers before assuming the
 secret is stale.
-"Job Inbox" database as an unprocessed row. No scoring happens here — this
-endpoint is intentionally cheap and does nothing but capture.
+
+No scoring happens in this route — it's intentionally cheap and does
+nothing but capture.
 
 ### 3. Notion — "Job Inbox" database
 
@@ -105,9 +106,32 @@ Not code in this repo — a cloud routine created via Claude Code's
 https://claude.ai/code/routines/trig_01FTJ1yeDbuggBpQzf8VEb5E. Fires 3x/day
 (`0 4,12,20 * * *` UTC = 12am/8am/4pm America/Toronto). Each run is a fresh,
 isolated cloud session with no memory of prior runs or this repo — the
-entire task (Notion API details, both schemas, the full fit rubric, and
-every step) is self-contained in the routine's prompt, calling the Notion
-REST API directly via `curl` (no MCP connector, no git checkout).
+entire task (data source IDs, both schemas, the full fit rubric, and every
+step) is self-contained in the routine's prompt.
+
+**Environment reality (discovered by watching a real run fail and adapt,
+not by reading docs):**
+- This sandbox blocks most outbound internet access. `curl` to
+  `api.notion.com` fails outright (network egress blocked) — the original
+  design called for calling Notion's REST API directly via `curl`, which
+  simply doesn't work here.
+- A Notion MCP connector *is* attached to the routine's session regardless
+  (visible in the `mcp_connections` on the trigger, contrary to what
+  `/schedule` initially reported as available) — the routine now uses its
+  tools (`notion-query-data-sources`, `notion-create-pages`,
+  `notion-update-page`) directly instead of `curl`. This is also a security
+  improvement: no raw Notion bearer token needs to live in the prompt text
+  anymore.
+- `WebFetch` to LinkedIn is also blocked (`EGRESS_BLOCKED`) — full-posting
+  fetches for accurate Work Mode/Pay are impossible in this sandbox. Not
+  actually a loss: the Job Inbox `Description` field already contains rich,
+  often near-complete job description text from rss.app's own payload (one
+  observed item was 26K+ characters), so scoring reads that instead.
+- Notion's `query-data-sources` MCP tool has a workspace usage limit that
+  can be hit mid-run on a large batch — the routine is instructed to
+  minimize query calls (select only needed columns, no `SELECT *` on Job
+  Inbox given how large `Description` can get) and proceed with whatever
+  data it has rather than block on a retry.
 
 Each run:
 
@@ -119,29 +143,26 @@ Each run:
    window is a safety margin for pipeline gaps, not an expected reprocessing
    case).
 3. Skips anything already in that set (marks it Processed, doesn't rescore).
-4. Parses title/company/location from the raw feed text.
-5. For titles containing Customer Success / Client Success / Account
-   Management / Strategic Accounts / Partner Relations / Renewal Manager /
-   Merchant Success / CSM (any seniority — this was deliberately widened
-   from an earlier "leadership titles only" draft, since IC-level Senior CSM
-   roles are explicitly in-rubric and pay data materially changes their
-   score), fetches the full posting via WebFetch to get accurate Work Mode,
-   Pay, and Company Link. Everything else is scored off the title +
-   description snippet alone, to avoid paying for a full fetch on obvious
-   noise.
-6. Scores every non-duplicate item 1-5 against the rubric (embedded
-   verbatim from `docs/fit-rubric.md` — keep both in sync if the rubric
-   changes).
-7. Publishes results to Job Listings.
-8. Marks every processed Inbox row.
-9. Tags listings `Stale` if `Date Posted` is >7 days old.
-10. Archives (Notion soft-delete, recoverable) listings >13 days old.
+4. Parses title/company/location from the raw feed text, and extracts Work
+   Mode/Pay/Company Link from the Description text where mentioned.
+5. Scores every non-duplicate item 1.0-5.0 (decimals allowed) against the
+   rubric (embedded verbatim from `docs/fit-rubric.md` — keep both in sync
+   if the rubric changes). Scoring is driven by account scope, role
+   seniority, comp, and location; whether the role is people-management or
+   a strong individual-contributor role is only a ±0.1 tie-breaker, not a
+   tier gate (see the rubric's "Leadership/IC modifier" section — this was
+   a deliberate correction from an earlier draft that capped IC roles at 3).
+6. Publishes results to Job Listings in large batches (up to 100
+   pages/call), not one page at a time.
+7. Marks every processed Inbox row.
+8. Tags listings `Stale` if `Date Posted` is >7 days old.
+9. Archives (Notion soft-delete, recoverable) listings >13 days old.
 
 ### 5. Notion — "Job Listings" database
 
 The scored, canonical dataset the webapp reads. Schema: Title, Company,
 Company Link, Location, Work Mode (select), Pay, Link, Date Posted, Date
-Added (created_time), Fit Score (1-5), Fit Reasoning, Status (select —
+Added (created_time), Fit Score (1.0-5.0, decimals allowed), Fit Reasoning, Status (select —
 manually edited by Daniel in Notion; New/Reviewed/Applied/Rejected/Ignored),
 Source Guid, Stale (checkbox). Data source id:
 `fa5209fd-9b4e-49fe-bfbe-f6f3fbc0c69f`. Both databases live under the
@@ -184,9 +205,10 @@ GitHub integration (no CLI deploys — see note below).
   endpoint can have many feeds attached to it. Room to add several more
   targeted LinkedIn searches (see the natural-language query approach in
   the "why webhook" note below) before hitting any real limit.
-- The scoring routine's Notion access is a raw bearer token embedded in its
-  prompt (no MCP connector attached to that cloud sandbox) — rotate the
-  Notion integration token if it's ever compromised, and update the routine
-  via `RemoteTrigger` `update`.
+- The scoring routine authenticates to Notion via the attached MCP
+  connector, tied to whichever Notion account is connected to the Claude
+  account that owns the routine — not the same integration token the
+  webapp uses. If that connection ever needs rotating, it's managed at
+  https://claude.ai/customize/connectors, not via an env var.
 - No write-back from the webapp to Notion yet (Status is only editable
   directly in Notion).
