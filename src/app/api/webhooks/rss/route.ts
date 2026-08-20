@@ -19,10 +19,24 @@ interface RssAppWebhookPayload {
   data?: { items_new?: RssAppItem[] };
 }
 
-function verifySignature(rawBody: string, signature: string | null, secret: string): boolean {
-  if (!signature) return false;
-  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-  const sigBuf = Buffer.from(signature);
+const SIGNATURE_TOLERANCE_SECONDS = 600;
+
+/**
+ * rss.app signs with a Stripe-style scheme: header is "t=<unix_ts>,v1=<hex>",
+ * where v1 = HMAC-SHA256(secret, `${t}.${rawBody}`), not HMAC(secret, rawBody).
+ */
+function verifySignature(rawBody: string, header: string | null, secret: string): boolean {
+  if (!header) return false;
+  const parts = Object.fromEntries(header.split(",").map((kv) => kv.split("=") as [string, string]));
+  const timestamp = parts.t;
+  const v1 = parts.v1;
+  if (!timestamp || !v1) return false;
+
+  const age = Math.abs(Date.now() / 1000 - Number(timestamp));
+  if (!Number.isFinite(age) || age > SIGNATURE_TOLERANCE_SECONDS) return false;
+
+  const expected = crypto.createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex");
+  const sigBuf = Buffer.from(v1);
   const expBuf = Buffer.from(expected);
   if (sigBuf.length !== expBuf.length) return false;
   return crypto.timingSafeEqual(sigBuf, expBuf);
@@ -34,14 +48,6 @@ export async function POST(request: NextRequest) {
   const secret = process.env.RSS_APP_WEBHOOK_SECRET;
   if (secret) {
     const signature = request.headers.get("rssapp-signature");
-    const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-    console.log("[rss-webhook-debug]", {
-      allHeaders: Array.from(request.headers.keys()),
-      rssappSignatureHeader: signature,
-      expectedHex: expected,
-      bodyPreview: rawBody.slice(0, 300),
-      bodyLength: rawBody.length,
-    });
     if (!verifySignature(rawBody, signature, secret)) {
       return NextResponse.json({ error: "invalid signature" }, { status: 401 });
     }
