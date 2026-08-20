@@ -68,9 +68,26 @@ available for more feeds.
 
 ### 2. Webhook receiver — `src/app/api/webhooks/rss/route.ts`
 
-`POST /api/webhooks/rss`. Verifies the `RSSApp-Signature` header
-(HMAC-SHA256 over the raw body, using `RSS_APP_WEBHOOK_SECRET`), parses
-`data.items_new[]` from the payload, and writes each item into the Notion
+`POST /api/webhooks/rss`. Verifies the `RSSApp-Signature` header, then
+parses `data.items_new[]` from the payload and writes each item into the
+Notion "Job Inbox" database.
+
+**Signature scheme (learned the hard way — not documented anywhere public
+at the time this was built):** rss.app's docs only say "HMAC-SHA256 via
+the `RSSApp-Signature` header," which reads like a raw hex digest of the
+body. It's actually a Stripe-style scheme: the header is
+`t=<unix_timestamp>,v1=<hex>`, and `v1` is
+`HMAC-SHA256(secret, "${t}.${rawBody}")` — the timestamp is concatenated
+into the signed content, not just carried alongside it, and exists for
+replay protection (this implementation rejects anything with a timestamp
+more than 10 minutes old). Diagnosed by temporarily logging the actual
+request headers/body from a live rss.app test delivery — Vercel's default
+access logs don't include either, so that requires an explicit
+`console.log` in the route handler and `vercel logs --expand` to read it
+back. Worth remembering if this ever needs re-diagnosing: a 401 with a
+*correct* secret almost certainly means a scheme mismatch, not a bad
+secret — verify by fetching a real request's headers before assuming the
+secret is stale.
 "Job Inbox" database as an unprocessed row. No scoring happens here — this
 endpoint is intentionally cheap and does nothing but capture.
 
