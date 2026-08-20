@@ -534,13 +534,17 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
 
   const sorted = useMemo(() => {
     const list = [...filtered];
+    const byFit = (a: DisplayListing, b: DisplayListing) => (b.fitScore ?? 0) - (a.fitScore ?? 0);
+    const byRecent = (a: DisplayListing, b: DisplayListing) => new Date(b.datePosted ?? 0).getTime() - new Date(a.datePosted ?? 0).getTime();
     list.sort((a, b) => {
       // Visa sponsorship is rare and high-value -- always bubbles to the top, ahead of whatever sort is active.
       const visaDiff = Number(b.visaSponsorship) - Number(a.visaSponsorship);
       if (visaDiff !== 0) return visaDiff;
-      if (sortBy === "recent") return new Date(b.datePosted ?? 0).getTime() - new Date(a.datePosted ?? 0).getTime();
       if (sortBy === "company") return a.company.localeCompare(b.company);
-      return (b.fitScore ?? 0) - (a.fitScore ?? 0);
+      // Fit and Recent are each other's tiebreaker: sorting by fit score still orders equal-scored
+      // roles by recency, and sorting by recency still orders same-day roles by fit score.
+      if (sortBy === "recent") return byRecent(a, b) || byFit(a, b);
+      return byFit(a, b) || byRecent(a, b);
     });
     return list;
   }, [filtered, sortBy]);
