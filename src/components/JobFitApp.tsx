@@ -520,6 +520,7 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
   const [activeLocationFilters, setActiveLocationFilters] = useState<Set<LocationFilter>>(new Set());
   const [activeWorkModeFilters, setActiveWorkModeFilters] = useState<Set<WorkModeFilter>>(new Set());
   const [activeFitScoreFilters, setActiveFitScoreFilters] = useState<Set<FitScoreFilter>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("fit");
   const [width, setWidth] = useState(1200);
 
@@ -563,18 +564,21 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
     setActiveLocationFilters(new Set());
     setActiveWorkModeFilters(new Set());
     setActiveFitScoreFilters(new Set());
+    setSearchQuery("");
   };
 
   const activeFilterCount = activeLocationFilters.size + activeWorkModeFilters.size + activeFitScoreFilters.size;
 
   const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return allJobs.filter((job) => {
       const locationOk = activeLocationFilters.size === 0 || [...activeLocationFilters].some((f) => matchesLocationFilter(job, f));
       const workModeOk = activeWorkModeFilters.size === 0 || [...activeWorkModeFilters].some((f) => matchesWorkModeFilter(job, f));
       const fitScoreOk = activeFitScoreFilters.size === 0 || [...activeFitScoreFilters].some((f) => matchesFitScoreFilter(job, f));
-      return locationOk && workModeOk && fitScoreOk;
+      const searchOk = q === "" || job.title.toLowerCase().includes(q) || job.company.toLowerCase().includes(q) || job.location.toLowerCase().includes(q);
+      return locationOk && workModeOk && fitScoreOk && searchOk;
     });
-  }, [allJobs, activeLocationFilters, activeWorkModeFilters, activeFitScoreFilters]);
+  }, [allJobs, activeLocationFilters, activeWorkModeFilters, activeFitScoreFilters, searchQuery]);
 
   const sorted = useMemo(() => {
     const list = [...filtered];
@@ -732,9 +736,42 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
           <div style={{ flex: 1, minWidth: 220, maxWidth: listMaxWidth }}>
             {screenList && (
               <>
+                <div style={{ position: "relative", marginBottom: 14 }}>
+                  <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", display: "flex", color: theme.muted, pointerEvents: "none" }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                      <line x1="21" y1="21" x2="16.5" y2="16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search title, company, or location"
+                    style={{
+                      width: "100%",
+                      border: `1.5px solid ${theme.divider}`,
+                      background: "transparent",
+                      color: theme.text,
+                      fontSize: 13,
+                      fontFamily: "inherit",
+                      padding: "10px 12px 10px 36px",
+                    }}
+                  />
+                  {searchQuery !== "" && (
+                    <button
+                      type="button"
+                      className="jft-btn"
+                      onClick={() => setSearchQuery("")}
+                      style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", ...ghostBtnStyle(theme.text), fontSize: 16, lineHeight: 1, padding: "4px 8px" }}
+                    >
+                      &times;
+                    </button>
+                  )}
+                </div>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                   <div style={{ fontSize: 15, fontWeight: 700 }}>
-                    {activeFilterCount === 0 ? `${sorted.length} roles` : `${sorted.length} of ${allJobs.length} roles`}
+                    {activeFilterCount === 0 && searchQuery === "" ? `${sorted.length} roles` : `${sorted.length} of ${allJobs.length} roles`}
                   </div>
                   <select
                     value={sortBy}
@@ -757,9 +794,9 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
                     </svg>
                     <div style={{ fontWeight: 800, fontSize: 15, marginTop: 16 }}>{allJobs.length === 0 ? "No listings yet" : "No roles match these filters"}</div>
                     <div style={{ fontSize: 13, marginTop: 6, color: theme.muted }}>
-                      {allJobs.length === 0 ? "They'll show up here once the scheduled job runs." : "Try clearing a filter to see more roles."}
+                      {allJobs.length === 0 ? "They'll show up here once the scheduled job runs." : "Try clearing a filter or search to see more roles."}
                     </div>
-                    {activeFilterCount > 0 && (
+                    {(activeFilterCount > 0 || searchQuery !== "") && (
                       <button type="button" className="jft-btn" onClick={clearAllFilters} style={{ marginTop: 18, padding: "9px 16px", ...secondaryBtnStyle(theme) }}>
                         Reset filters
                       </button>

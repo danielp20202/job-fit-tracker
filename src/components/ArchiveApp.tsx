@@ -20,6 +20,7 @@ import {
   ExternalLinkIcon,
   VisaSponsorshipBadge,
   secondaryBtnStyle,
+  ghostBtnStyle,
   tagStyle,
 } from "@/components/JobFitApp";
 
@@ -27,10 +28,16 @@ export function ArchiveApp({ jobs }: { jobs: DisplayListing[] }) {
   const [dark] = useState(false);
   const [restoredIds, setRestoredIds] = useState<Set<string>>(new Set());
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const theme = dark ? THEME.dark : THEME.light;
   const badges = dark ? BADGE_DARK : BADGE_LIGHT;
 
-  const visible = jobs.filter((j) => !restoredIds.has(j.id));
+  const notRestored = jobs.filter((j) => !restoredIds.has(j.id));
+  const q = searchQuery.trim().toLowerCase();
+  const visible =
+    q === ""
+      ? notRestored
+      : notRestored.filter((j) => j.title.toLowerCase().includes(q) || j.company.toLowerCase().includes(q) || j.location.toLowerCase().includes(q));
 
   const restore = async (id: string) => {
     setRestoringId(id);
@@ -63,8 +70,46 @@ export function ArchiveApp({ jobs }: { jobs: DisplayListing[] }) {
       </div>
 
       <div className="max-w-[440px] sm:max-w-[600px] lg:max-w-[680px] mx-auto" style={{ padding: 24 }}>
+        <div style={{ position: "relative", marginBottom: 16 }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", display: "flex", color: theme.muted, pointerEvents: "none" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+              <line x1="21" y1="21" x2="16.5" y2="16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search title, company, or location"
+            style={{
+              width: "100%",
+              border: `1.5px solid ${theme.divider}`,
+              background: "transparent",
+              color: theme.text,
+              fontSize: 13,
+              fontFamily: "inherit",
+              padding: "10px 12px 10px 36px",
+            }}
+          />
+          {searchQuery !== "" && (
+            <button
+              type="button"
+              className="jft-btn"
+              onClick={() => setSearchQuery("")}
+              style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", ...ghostBtnStyle(theme.text), fontSize: 16, lineHeight: 1, padding: "4px 8px" }}
+            >
+              &times;
+            </button>
+          )}
+        </div>
+
         <div style={{ fontSize: 13, color: theme.muted, marginBottom: 16 }}>
-          {visible.length === 0 ? "No archived listings." : `${visible.length} archived listing${visible.length === 1 ? "" : "s"}`}
+          {jobs.length === 0
+            ? "No archived listings."
+            : visible.length === 0
+              ? "No archived listings match your search."
+              : `${visible.length} of ${notRestored.length} archived listing${notRestored.length === 1 ? "" : "s"}`}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
