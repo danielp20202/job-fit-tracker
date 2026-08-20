@@ -53,6 +53,15 @@ function daysAgoLabel(dateStr: string | null): string {
   return weeks === 1 ? "1 week ago" : `${weeks} weeks ago`;
 }
 
+/** Fit scores can be decimals (e.g. 4.9); badge color/label buckets are still 1-5 integer tiers. */
+function scoreTier(score: number): number {
+  return Math.min(5, Math.max(1, Math.round(score)));
+}
+
+function formatScore(score: number): string {
+  return Number.isInteger(score) ? String(score) : score.toFixed(1);
+}
+
 function matchesLocationFilter(job: DisplayListing, filter: LocationFilter): boolean {
   if (filter === "Remote") return job.workMode === "Remote";
   return job.location.toLowerCase().includes(filter.toLowerCase());
@@ -77,7 +86,7 @@ function ExternalLinkIcon({ color }: { color: string }) {
 
 function FitBadge({ score, dark, size = 56 }: { score: number | null; dark: boolean; size?: number }) {
   const badges = dark ? BADGE_DARK : BADGE_LIGHT;
-  const { bg, color } = score !== null ? badges[score] : dark ? BADGE_NEUTRAL.dark : BADGE_NEUTRAL.light;
+  const { bg, color } = score !== null ? badges[scoreTier(score)] : dark ? BADGE_NEUTRAL.dark : BADGE_NEUTRAL.light;
   return (
     <div
       style={{
@@ -92,7 +101,7 @@ function FitBadge({ score, dark, size = 56 }: { score: number | null; dark: bool
         justifyContent: "center",
       }}
     >
-      <div style={{ fontWeight: 800, fontSize: size * 0.39, lineHeight: 1 }}>{score ?? "–"}</div>
+      <div style={{ fontWeight: 800, fontSize: size * 0.39, lineHeight: 1 }}>{score !== null ? formatScore(score) : "–"}</div>
       <div style={{ fontSize: size * 0.14, letterSpacing: "0.08em", marginTop: 1 }}>/ 5</div>
     </div>
   );
@@ -174,7 +183,7 @@ function JobRow({ job, dark, onOpen }: { job: DisplayListing; dark: boolean; onO
 
 function DetailScreen({ job, dark, onBack }: { job: DisplayListing; dark: boolean; onBack: () => void }) {
   const theme = dark ? THEME.dark : THEME.light;
-  const fitLabel = job.fitScore !== null ? FIT_LABELS[job.fitScore] : "Unscored";
+  const fitLabel = job.fitScore !== null ? FIT_LABELS[scoreTier(job.fitScore)] : "Unscored";
 
   return (
     <div style={{ padding: "24px 20px 40px", color: theme.text }}>
