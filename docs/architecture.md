@@ -164,7 +164,9 @@ The scored, canonical dataset the webapp reads. Schema: Title, Company,
 Company Link, Location, Work Mode (select), Pay, Link, Date Posted, Date
 Added (created_time), Fit Score (1.0-5.0, decimals allowed), Fit Reasoning, Status (select —
 manually edited by Daniel in Notion; New/Reviewed/Applied/Rejected/Ignored),
-Source Guid, Stale (checkbox). Data source id:
+Source Guid, Stale (checkbox), Visa Sponsorship (checkbox — detected by the
+scoring routine from explicit mentions in the posting text only, defaults
+false; rare by design). Data source id:
 `fa5209fd-9b4e-49fe-bfbe-f6f3fbc0c69f`. Both databases live under the
 [Job Search](https://app.notion.com/p/3c1800d538a7814da15ec4ae519b0f00)
 page.
@@ -181,17 +183,27 @@ GitHub integration (no CLI deploys — see note below).
 - `src/components/JobFitApp.tsx` — client component implementing the actual
   UI. Responsive breakpoints tracked via a `window.innerWidth` resize
   listener (`isDesktop` at ≥860px, `isTabletUp` at ≥640px):
-  - **Desktop (≥860px):** persistent left sidebar with location filters
-    (checkboxes + per-location counts, "Clear all"), and a **master-detail
-    split view** — list and detail pane side by side, detail pane is
-    `position: sticky`; clicking a card never navigates away from the list,
-    it just populates the detail pane (a `×` button clears the selection
-    without leaving the list). Sort-by dropdown (Fit score / Most recent /
-    Company A–Z) above the list.
-  - **Mobile/tablet (<860px):** a button opens a bottom-sheet location
-    filter (same options, no counts shown); selecting a card replaces the
-    list with a full-screen detail overlay with a back button, rather than
+  - **Desktop (≥860px):** persistent left sidebar with two independent
+    filter groups — Work Mode (Remote/Hybrid/Onsite, matches `workMode`
+    exactly) and Location (Montreal/Ottawa/Toronto, matches on the raw
+    location text) — each with checkboxes + counts and a combined "Clear
+    all". The two groups AND together; options within a group OR. A
+    **master-detail split view** — list and detail pane side by side,
+    detail pane is `position: sticky`; clicking a card never navigates away
+    from the list, it just populates the detail pane (a `×` button clears
+    the selection without leaving the list). Sort-by dropdown (Fit score /
+    Most recent / Company A–Z) above the list — though visa-sponsorship
+    listings always sort first regardless of this setting (see below).
+  - **Mobile/tablet (<860px):** a button opens a bottom-sheet with the same
+    two filter groups (no counts shown); selecting a card replaces the list
+    with a full-screen detail overlay with a back button, rather than
     showing both at once.
+  - **Visa Sponsorship** gets a deliberately distinct gold badge (not the
+    app's red accent) on both the card and detail view, plus a gold card
+    border — rare and high-value, so it's designed to be impossible to miss
+    at a glance. Listings with it set always sort to the very top, ahead of
+    the active sort criterion (implemented as the first comparator in the
+    sort function, before whatever `sortBy` is selected).
   - Visual design ported from a Claude Design canvas ("Job Fit Tracker
     Mobile.dc.html," Modernist design system — Archivo type, sharp corners,
     red accent `#ec3013`, thick dividers), re-imported and re-implemented

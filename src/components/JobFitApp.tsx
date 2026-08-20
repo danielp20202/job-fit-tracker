@@ -5,8 +5,12 @@ import type { DisplayListing } from "@/lib/notion";
 
 const ACCENT = "#ec3013";
 const ACCENT_700 = "#ae1800";
-const LOCATION_FILTERS = ["Remote", "Montreal", "Ottawa", "Toronto"] as const;
+const GOLD = "#f5b700";
+const GOLD_DARK = "#3d2e00";
+const LOCATION_FILTERS = ["Montreal", "Ottawa", "Toronto"] as const;
 type LocationFilter = (typeof LOCATION_FILTERS)[number];
+const WORK_MODE_FILTERS = ["Remote", "Hybrid", "Onsite"] as const;
+type WorkModeFilter = (typeof WORK_MODE_FILTERS)[number];
 type SortBy = "fit" | "recent" | "company";
 
 const FIT_LABELS: Record<number, string> = {
@@ -65,8 +69,11 @@ function formatScore(score: number): string {
 }
 
 function matchesLocationFilter(job: DisplayListing, filter: LocationFilter): boolean {
-  if (filter === "Remote") return job.workMode === "Remote";
   return job.location.toLowerCase().includes(filter.toLowerCase());
+}
+
+function matchesWorkModeFilter(job: DisplayListing, filter: WorkModeFilter): boolean {
+  return job.workMode === filter;
 }
 
 function PinIcon({ color, size = 8 }: { color: string; size?: number }) {
@@ -127,6 +134,31 @@ function ChevronDownIcon({ color }: { color: string }) {
   );
 }
 
+/** Rare and high-value, so deliberately distinct from the rest of the (red-only) palette — gold, not accent red. */
+function VisaSponsorshipBadge({ size = "normal" }: { size?: "normal" | "large" }) {
+  const fontSize = size === "large" ? 12 : 10.5;
+  const padding = size === "large" ? "5px 12px" : "3px 9px";
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        background: GOLD,
+        color: GOLD_DARK,
+        fontWeight: 800,
+        fontSize,
+        letterSpacing: "0.02em",
+        padding,
+        border: `1.5px solid ${GOLD_DARK}`,
+      }}
+    >
+      <StarIcon fill={GOLD_DARK} />
+      Visa Sponsorship
+    </span>
+  );
+}
+
 /** btn-secondary look, matching the Modernist design system's button classes (replicated as inline styles, see docs/architecture.md on why we don't import the raw CSS). */
 function secondaryBtnStyle(theme: typeof THEME.light): React.CSSProperties {
   return { border: `1.5px solid ${theme.divider}`, background: "transparent", color: theme.text, fontWeight: 800, cursor: "pointer" };
@@ -141,14 +173,14 @@ function tagStyle(theme: typeof THEME.light): React.CSSProperties {
   return { display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700, padding: "3px 9px", background: theme.surfaceAlt, color: theme.muted };
 }
 
-interface LocationOption {
-  label: LocationFilter;
+interface FilterOption {
+  label: string;
   isChecked: boolean;
   count: number;
   toggle: () => void;
 }
 
-function LocationRow({ loc, theme, size = 16 }: { loc: LocationOption; theme: typeof THEME.light; size?: number }) {
+function FilterOptionRow({ loc, theme, size = 16 }: { loc: FilterOption; theme: typeof THEME.light; size?: number }) {
   return (
     <div
       onClick={loc.toggle}
@@ -209,8 +241,18 @@ function JobCard({
     <div
       onClick={onOpen}
       className="jft-row"
-      style={{ border: `1.5px solid ${theme.divider}`, padding: rowPad, cursor: "pointer", background: active ? theme.surfaceAlt : "transparent" }}
+      style={{
+        border: job.visaSponsorship ? `2px solid ${GOLD}` : `1.5px solid ${theme.divider}`,
+        padding: rowPad,
+        cursor: "pointer",
+        background: active ? theme.surfaceAlt : "transparent",
+      }}
     >
+      {job.visaSponsorship && (
+        <div style={{ marginBottom: 10 }}>
+          <VisaSponsorshipBadge />
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, color: ACCENT_700, fontWeight: 800, fontSize: 12 }}>
           <PinIcon color={ACCENT_700} size={12} />
@@ -319,6 +361,12 @@ function DetailPane({
       </div>
       <h2 style={{ margin: 0, fontSize: 23, fontWeight: 800 }}>{job.title}</h2>
 
+      {job.visaSponsorship && (
+        <div style={{ marginTop: 10 }}>
+          <VisaSponsorshipBadge size="large" />
+        </div>
+      )}
+
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
         <div style={{ width: 34, height: 34, flex: "none", background: ACCENT, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 15 }}>
           {job.company.charAt(0)}
@@ -382,30 +430,42 @@ function DetailPane({
 
 function FilterSheet({
   theme,
+  workModes,
   locations,
   onClear,
   onClose,
 }: {
   theme: typeof THEME.light;
-  locations: LocationOption[];
+  workModes: FilterOption[];
+  locations: FilterOption[];
   onClear: () => void;
   onClose: () => void;
 }) {
   return (
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 30 }} />
-      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 31, background: theme.surface, borderTop: `2px solid ${theme.divider}`, padding: "20px 20px 40px", maxWidth: 480, margin: "0 auto", color: theme.text }}>
+      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 31, background: theme.surface, borderTop: `2px solid ${theme.divider}`, padding: "20px 20px 40px", maxWidth: 480, margin: "0 auto", color: theme.text, maxHeight: "80vh", overflowY: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>Filter by location</div>
+          <div style={{ fontWeight: 800, fontSize: 16 }}>Filters</div>
           <button type="button" className="jft-btn" onClick={onClose} style={{ ...ghostBtnStyle(theme.text), fontSize: 20, lineHeight: 1 }}>
             &times;
           </button>
         </div>
-        <div style={{ marginTop: 8 }}>
-          {locations.map((loc) => (
-            <LocationRow key={loc.label} loc={loc} theme={theme} size={19} />
+
+        <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: "0.04em", textTransform: "uppercase", color: theme.muted, margin: "16px 0 4px" }}>Work Mode</div>
+        <div>
+          {workModes.map((wm) => (
+            <FilterOptionRow key={wm.label} loc={wm} theme={theme} size={19} />
           ))}
         </div>
+
+        <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: "0.04em", textTransform: "uppercase", color: theme.muted, margin: "16px 0 4px" }}>Location</div>
+        <div>
+          {locations.map((loc) => (
+            <FilterOptionRow key={loc.label} loc={loc} theme={theme} size={19} />
+          ))}
+        </div>
+
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
           <button type="button" className="jft-btn" onClick={onClear} style={{ flex: 1, padding: 12, ...secondaryBtnStyle(theme) }}>
             Clear
@@ -424,7 +484,8 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
   const [screen, setScreen] = useState<"list" | "detail">("list");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [activeFilters, setActiveFilters] = useState<Set<LocationFilter>>(new Set());
+  const [activeLocationFilters, setActiveLocationFilters] = useState<Set<LocationFilter>>(new Set());
+  const [activeWorkModeFilters, setActiveWorkModeFilters] = useState<Set<WorkModeFilter>>(new Set());
   const [sortBy, setSortBy] = useState<SortBy>("fit");
   const [width, setWidth] = useState(1200);
 
@@ -440,42 +501,67 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
   const isSplit = isDesktop;
   const isTabletUp = width >= 640;
 
-  const toggleFilter = (filter: LocationFilter) => {
-    setActiveFilters((prev) => {
+  const toggleLocationFilter = (filter: LocationFilter) => {
+    setActiveLocationFilters((prev) => {
       const next = new Set(prev);
       if (next.has(filter)) next.delete(filter);
       else next.add(filter);
       return next;
     });
   };
+  const toggleWorkModeFilter = (filter: WorkModeFilter) => {
+    setActiveWorkModeFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(filter)) next.delete(filter);
+      else next.add(filter);
+      return next;
+    });
+  };
+  const clearAllFilters = () => {
+    setActiveLocationFilters(new Set());
+    setActiveWorkModeFilters(new Set());
+  };
+
+  const activeFilterCount = activeLocationFilters.size + activeWorkModeFilters.size;
 
   const filtered = useMemo(() => {
-    if (activeFilters.size === 0) return allJobs;
-    return allJobs.filter((job) => [...activeFilters].some((f) => matchesLocationFilter(job, f)));
-  }, [allJobs, activeFilters]);
+    return allJobs.filter((job) => {
+      const locationOk = activeLocationFilters.size === 0 || [...activeLocationFilters].some((f) => matchesLocationFilter(job, f));
+      const workModeOk = activeWorkModeFilters.size === 0 || [...activeWorkModeFilters].some((f) => matchesWorkModeFilter(job, f));
+      return locationOk && workModeOk;
+    });
+  }, [allJobs, activeLocationFilters, activeWorkModeFilters]);
 
   const sorted = useMemo(() => {
     const list = [...filtered];
-    if (sortBy === "recent") {
-      list.sort((a, b) => new Date(b.datePosted ?? 0).getTime() - new Date(a.datePosted ?? 0).getTime());
-    } else if (sortBy === "company") {
-      list.sort((a, b) => a.company.localeCompare(b.company));
-    } else {
-      list.sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0));
-    }
+    list.sort((a, b) => {
+      // Visa sponsorship is rare and high-value -- always bubbles to the top, ahead of whatever sort is active.
+      const visaDiff = Number(b.visaSponsorship) - Number(a.visaSponsorship);
+      if (visaDiff !== 0) return visaDiff;
+      if (sortBy === "recent") return new Date(b.datePosted ?? 0).getTime() - new Date(a.datePosted ?? 0).getTime();
+      if (sortBy === "company") return a.company.localeCompare(b.company);
+      return (b.fitScore ?? 0) - (a.fitScore ?? 0);
+    });
     return list;
   }, [filtered, sortBy]);
 
   const selectedJob = allJobs.find((j) => j.id === selectedJobId) ?? null;
-  const filterLabel = activeFilters.size === 0 ? "All" : [...activeFilters].join(", ");
+  const filterLabel = activeFilterCount === 0 ? "All" : [...activeWorkModeFilters, ...activeLocationFilters].join(", ");
   const isEmpty = sorted.length === 0;
   const rowPad = "16px 20px";
 
-  const locations: LocationOption[] = LOCATION_FILTERS.map((label) => ({
+  const workModes: FilterOption[] = WORK_MODE_FILTERS.map((label) => ({
     label,
-    isChecked: activeFilters.has(label),
+    isChecked: activeWorkModeFilters.has(label),
+    count: allJobs.filter((j) => matchesWorkModeFilter(j, label)).length,
+    toggle: () => toggleWorkModeFilter(label),
+  }));
+
+  const locations: FilterOption[] = LOCATION_FILTERS.map((label) => ({
+    label,
+    isChecked: activeLocationFilters.has(label),
     count: allJobs.filter((j) => matchesLocationFilter(j, label)).length,
-    toggle: () => toggleFilter(label),
+    toggle: () => toggleLocationFilter(label),
   }));
 
   const screenList = isSplit ? true : screen === "list";
@@ -530,15 +616,19 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
               </svg>
               Filters
             </div>
-            {activeFilters.size > 0 && (
-              <button type="button" className="jft-btn" onClick={() => setActiveFilters(new Set())} style={{ ...ghostBtnStyle(ACCENT), fontSize: 12 }}>
+            {activeFilterCount > 0 && (
+              <button type="button" className="jft-btn" onClick={clearAllFilters} style={{ ...ghostBtnStyle(ACCENT), fontSize: 12 }}>
                 Clear all
               </button>
             )}
           </div>
-          <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: "0.04em", textTransform: "uppercase", color: theme.muted, marginBottom: 10 }}>Location</div>
+          <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: "0.04em", textTransform: "uppercase", color: theme.muted, marginBottom: 10 }}>Work Mode</div>
+          {workModes.map((wm) => (
+            <FilterOptionRow key={wm.label} loc={wm} theme={theme} size={16} />
+          ))}
+          <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: "0.04em", textTransform: "uppercase", color: theme.muted, margin: "14px 0 10px" }}>Location</div>
           {locations.map((loc) => (
-            <LocationRow key={loc.label} loc={loc} theme={theme} size={16} />
+            <FilterOptionRow key={loc.label} loc={loc} theme={theme} size={16} />
           ))}
         </div>
 
@@ -550,7 +640,7 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
             onClick={() => setSheetOpen(true)}
             style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", ...secondaryBtnStyle(theme) }}
           >
-            <span>Location &middot; {filterLabel}</span>
+            <span>Filters &middot; {filterLabel}</span>
             <ChevronDownIcon color={theme.text} />
           </button>
         </div>
@@ -562,7 +652,7 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
               <>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                   <div style={{ fontSize: 15, fontWeight: 700 }}>
-                    {activeFilters.size === 0 ? `${sorted.length} roles` : `${sorted.length} of ${allJobs.length} roles`}
+                    {activeFilterCount === 0 ? `${sorted.length} roles` : `${sorted.length} of ${allJobs.length} roles`}
                   </div>
                   <select
                     value={sortBy}
@@ -574,7 +664,7 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
                     <option value="company">Sort by: Company A–Z</option>
                   </select>
                 </div>
-                <div style={{ fontSize: 12.5, color: theme.muted, marginTop: 4 }}>Refine by location to narrow results.</div>
+                <div style={{ fontSize: 12.5, color: theme.muted, marginTop: 4 }}>Refine by work mode or location to narrow results.</div>
                 <div style={{ height: 2, background: theme.divider, margin: "12px 0 16px" }} />
 
                 {isEmpty ? (
@@ -587,8 +677,8 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
                     <div style={{ fontSize: 13, marginTop: 6, color: theme.muted }}>
                       {allJobs.length === 0 ? "They'll show up here once the scheduled job runs." : "Try clearing a filter to see more roles."}
                     </div>
-                    {activeFilters.size > 0 && (
-                      <button type="button" className="jft-btn" onClick={() => setActiveFilters(new Set())} style={{ marginTop: 18, padding: "9px 16px", ...secondaryBtnStyle(theme) }}>
+                    {activeFilterCount > 0 && (
+                      <button type="button" className="jft-btn" onClick={clearAllFilters} style={{ marginTop: 18, padding: "9px 16px", ...secondaryBtnStyle(theme) }}>
                         Reset filters
                       </button>
                     )}
@@ -642,7 +732,7 @@ export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
         </div>
       </div>
 
-      {sheetOpen && <FilterSheet theme={theme} locations={locations} onClear={() => setActiveFilters(new Set())} onClose={() => setSheetOpen(false)} />}
+      {sheetOpen && <FilterSheet theme={theme} workModes={workModes} locations={locations} onClear={clearAllFilters} onClose={() => setSheetOpen(false)} />}
     </div>
   );
 }

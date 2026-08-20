@@ -18,6 +18,7 @@ export interface DisplayListing {
   fitScore: number | null;
   fitReasoning: string;
   status: string;
+  visaSponsorship: boolean;
 }
 
 function richText(prop: unknown): string {
@@ -41,6 +42,7 @@ function pageToListing(page: PageObjectResponse): DisplayListing {
     fitScore: (props["Fit Score"] as { number?: number })?.number ?? null,
     fitReasoning: richText(props["Fit Reasoning"]),
     status: (props.Status as { select?: { name?: string } })?.select?.name ?? "New",
+    visaSponsorship: (props["Visa Sponsorship"] as { checkbox?: boolean })?.checkbox ?? false,
   };
 }
 
