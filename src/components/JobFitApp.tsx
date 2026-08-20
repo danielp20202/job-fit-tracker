@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DisplayListing } from "@/lib/notion";
 
 const ACCENT = "#ec3013";
+const ACCENT_700 = "#ae1800";
 const LOCATION_FILTERS = ["Remote", "Montreal", "Ottawa", "Toronto"] as const;
 type LocationFilter = (typeof LOCATION_FILTERS)[number];
+type SortBy = "fit" | "recent" | "company";
 
 const FIT_LABELS: Record<number, string> = {
   5: "Great fit",
@@ -67,11 +69,36 @@ function matchesLocationFilter(job: DisplayListing, filter: LocationFilter): boo
   return job.location.toLowerCase().includes(filter.toLowerCase());
 }
 
-function PinIcon({ color }: { color: string }) {
+function PinIcon({ color, size = 8 }: { color: string; size?: number }) {
   return (
-    <svg width="8" height="10" viewBox="0 0 24 24" fill="none">
+    <svg width={size} height={size * 1.2} viewBox="0 0 24 24" fill="none">
       <path d="M12 22s7-7.58 7-12.5A7 7 0 105 9.5C5 14.42 12 22 12 22z" stroke={color} strokeWidth="2.4" strokeLinejoin="round" />
       <circle cx="12" cy="9.5" r="2.2" fill={color} />
+    </svg>
+  );
+}
+
+function BuildingIcon({ color }: { color: string }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+      <path d="M4 4h16v4H4V4zm0 6h16v10H4V10z" stroke={color} strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ClockIcon({ color }: { color: string }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.8" />
+      <path d="M12 7v5l4 2" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function StarIcon({ fill }: { fill: string }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill={fill}>
+      <path d="M12 2l2.9 6.3 6.9.9-5 4.8 1.3 6.8L12 17.7 5.9 20.8l1.3-6.8-5-4.8 6.9-.9L12 2z" />
     </svg>
   );
 }
@@ -84,123 +111,212 @@ function ExternalLinkIcon({ color }: { color: string }) {
   );
 }
 
+function CheckIcon({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size * 0.78} viewBox="0 0 24 20" fill="none">
+      <path d="M1 10l7 7L23 1" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ color }: { color: string }) {
+  return (
+    <svg width="11" height="7" viewBox="0 0 11 7" fill="none">
+      <path d="M1 1l4.5 5L10 1" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** btn-secondary look, matching the Modernist design system's button classes (replicated as inline styles, see docs/architecture.md on why we don't import the raw CSS). */
+function secondaryBtnStyle(theme: typeof THEME.light): React.CSSProperties {
+  return { border: `1.5px solid ${theme.divider}`, background: "transparent", color: theme.text, fontWeight: 800, cursor: "pointer" };
+}
+function ghostBtnStyle(color: string): React.CSSProperties {
+  return { border: "none", background: "none", color, fontWeight: 800, cursor: "pointer", padding: 0 };
+}
+function primaryBtnStyle(): React.CSSProperties {
+  return { border: "none", background: ACCENT, color: "#fff", fontWeight: 800, cursor: "pointer" };
+}
+function tagStyle(theme: typeof THEME.light): React.CSSProperties {
+  return { display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700, padding: "3px 9px", background: theme.surfaceAlt, color: theme.muted };
+}
+
+interface LocationOption {
+  label: LocationFilter;
+  isChecked: boolean;
+  count: number;
+  toggle: () => void;
+}
+
+function LocationRow({ loc, theme, size = 16 }: { loc: LocationOption; theme: typeof THEME.light; size?: number }) {
+  return (
+    <div
+      onClick={loc.toggle}
+      className="jft-loc"
+      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 6px", cursor: "pointer" }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div
+          style={{
+            width: size,
+            height: size,
+            flex: "none",
+            border: `1.5px solid ${loc.isChecked ? ACCENT : theme.divider}`,
+            background: loc.isChecked ? ACCENT : "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {loc.isChecked && <CheckIcon size={size * 0.56} />}
+        </div>
+        <span style={{ fontSize: 13.5, fontWeight: 600 }}>{loc.label}</span>
+      </div>
+      <span style={{ fontSize: 12, color: theme.muted }}>{loc.count}</span>
+    </div>
+  );
+}
+
 function FitBadge({ score, dark, size = 56 }: { score: number | null; dark: boolean; size?: number }) {
   const badges = dark ? BADGE_DARK : BADGE_LIGHT;
   const { bg, color } = score !== null ? badges[scoreTier(score)] : dark ? BADGE_NEUTRAL.dark : BADGE_NEUTRAL.light;
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        flex: "none",
-        background: bg,
-        color,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
+    <div style={{ width: size, height: size, flex: "none", background: bg, color, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
       <div style={{ fontWeight: 800, fontSize: size * 0.39, lineHeight: 1 }}>{score !== null ? formatScore(score) : "–"}</div>
       <div style={{ fontSize: size * 0.14, letterSpacing: "0.08em", marginTop: 1 }}>/ 5</div>
     </div>
   );
 }
 
-function JobRow({ job, dark, onOpen }: { job: DisplayListing; dark: boolean; onOpen: () => void }) {
-  const theme = dark ? THEME.dark : THEME.light;
+function JobCard({
+  job,
+  theme,
+  dark,
+  active,
+  rowPad,
+  onOpen,
+}: {
+  job: DisplayListing;
+  theme: typeof THEME.light;
+  dark: boolean;
+  active: boolean;
+  rowPad: string;
+  onOpen: () => void;
+}) {
+  const badges = dark ? BADGE_DARK : BADGE_LIGHT;
+  const badgeBg = job.fitScore !== null ? badges[scoreTier(job.fitScore)].bg : (dark ? BADGE_NEUTRAL.dark : BADGE_NEUTRAL.light).bg;
   return (
     <div
       onClick={onOpen}
       className="jft-row"
-      style={{ display: "grid", gridTemplateColumns: "56px 1fr", gap: 14, padding: "16px 20px", borderBottom: `2px solid ${theme.divider}`, cursor: "pointer" }}
+      style={{ border: `1.5px solid ${theme.divider}`, padding: rowPad, cursor: "pointer", background: active ? theme.surfaceAlt : "transparent" }}
     >
-      <FitBadge score={job.fitScore} dark={dark} />
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 800, fontSize: 16, lineHeight: 1.25 }}>{job.title}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.85 }}>{job.company}</span>
-          {job.companyLink && (
-            <a
-              href={job.companyLink}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              style={{ display: "flex", color: theme.muted }}
-            >
-              <ExternalLinkIcon color="currentColor" />
-            </a>
-          )}
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 9 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, border: `1.5px solid ${ACCENT}`, color: ACCENT, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.02em", padding: "3px 9px" }}>
-            <PinIcon color={ACCENT} />
-            {job.location || "Unknown location"}
-          </span>
-          {job.workMode !== "Unknown" && (
-            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.02em", padding: "3px 9px", background: theme.surfaceAlt, color: theme.muted }}>
-              {job.workMode}
-            </span>
-          )}
-        </div>
-        {job.pay && <div style={{ fontSize: 11.5, fontWeight: 700, marginTop: 7, opacity: 0.75 }}>{job.pay}</div>}
-        {job.fitReasoning && (
-          <p
-            style={{
-              fontSize: 13,
-              lineHeight: 1.45,
-              margin: "8px 0 0",
-              opacity: 0.8,
-              display: "-webkit-box",
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            {job.fitReasoning}
-          </p>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, color: ACCENT_700, fontWeight: 800, fontSize: 12 }}>
+          <PinIcon color={ACCENT_700} size={12} />
+          {job.location || "Unknown location"}
+        </span>
+        <span style={{ color: theme.divider }}>|</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: theme.muted, fontWeight: 700 }}>
+          <BuildingIcon color="currentColor" />
+          {job.company}
+        </span>
+        {job.companyLink && (
+          <a href={job.companyLink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ display: "flex", color: theme.muted }}>
+            <ExternalLinkIcon color="currentColor" />
+          </a>
         )}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.05em",
-              textTransform: "uppercase",
-              padding: "3px 8px",
-              border: `1px solid ${statusColor(job.status, dark)}`,
-              color: statusColor(job.status, dark),
-            }}
-          >
-            {job.status}
-          </span>
-          <div style={{ fontSize: 11, color: theme.muted }}>{daysAgoLabel(job.datePosted)}</div>
-        </div>
+      </div>
+
+      <div style={{ fontWeight: 800, fontSize: 17, lineHeight: 1.3, marginTop: 8 }}>{job.title}</div>
+
+      {job.fitReasoning && (
+        <p
+          style={{
+            fontSize: 13.5,
+            lineHeight: 1.5,
+            margin: "8px 0 0",
+            opacity: 0.8,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {job.fitReasoning}
+        </p>
+      )}
+
+      <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginTop: 12, fontSize: 12, color: theme.muted }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <ClockIcon color="currentColor" />
+          {daysAgoLabel(job.datePosted)}
+        </span>
+        {job.workMode !== "Unknown" && <span style={tagStyle(theme)}>{job.workMode}</span>}
+        {job.pay && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 700, color: theme.text, opacity: 0.75 }}>{job.pay}</span>}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, color: ACCENT_700, fontWeight: 700 }}>
+          <StarIcon fill={badgeBg} />
+          {job.fitScore !== null ? formatScore(job.fitScore) : "–"}/5 fit
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            padding: "3px 8px",
+            border: `1px solid ${statusColor(job.status, dark)}`,
+            color: statusColor(job.status, dark),
+            marginLeft: "auto",
+          }}
+        >
+          {job.status}
+        </span>
       </div>
     </div>
   );
 }
 
-function DetailScreen({ job, dark, onBack }: { job: DisplayListing; dark: boolean; onBack: () => void }) {
-  const theme = dark ? THEME.dark : THEME.light;
+function DetailPane({
+  job,
+  theme,
+  dark,
+  pad,
+  showBack,
+  showClose,
+  onBack,
+  onClose,
+}: {
+  job: DisplayListing;
+  theme: typeof THEME.light;
+  dark: boolean;
+  pad: string;
+  showBack: boolean;
+  showClose: boolean;
+  onBack: () => void;
+  onClose: () => void;
+}) {
   const fitLabel = job.fitScore !== null ? FIT_LABELS[scoreTier(job.fitScore)] : "Unscored";
 
   return (
-    <div style={{ padding: "24px 20px 40px", color: theme.text }}>
-      <button
-        type="button"
-        className="jft-btn"
-        onClick={onBack}
-        style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: theme.text, fontWeight: 800, fontSize: 14, padding: 0, cursor: "pointer" }}
-      >
-        <svg width="9" height="15" viewBox="0 0 9 15" fill="none">
-          <path d="M8 1L1 7.5L8 14" stroke={theme.text} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        Listings
-      </button>
-      <div style={{ height: 2, background: theme.divider, margin: "16px 0 18px" }} />
+    <div style={{ padding: pad, color: theme.text }}>
+      {showBack && (
+        <button type="button" className="jft-btn" onClick={onBack} style={{ ...ghostBtnStyle(theme.text), display: "flex", alignItems: "center", gap: 6, fontSize: 14, marginBottom: 16 }}>
+          <svg width="9" height="15" viewBox="0 0 9 15" fill="none">
+            <path d="M8 1L1 7.5L8 14" stroke={theme.text} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Listings
+        </button>
+      )}
 
-      <h6 style={{ color: ACCENT, margin: "0 0 6px", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 800 }}>Job detail</h6>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <h6 style={{ color: ACCENT, margin: "0 0 6px", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 800 }}>Job detail</h6>
+        {showClose && (
+          <button type="button" className="jft-btn" onClick={onClose} style={{ ...ghostBtnStyle(theme.text), fontSize: 18, lineHeight: 1, marginBottom: 6 }}>
+            &times;
+          </button>
+        )}
+      </div>
       <h2 style={{ margin: 0, fontSize: 23, fontWeight: 800 }}>{job.title}</h2>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
@@ -217,12 +333,10 @@ function DetailScreen({ job, dark, onBack }: { job: DisplayListing; dark: boolea
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1.5px solid ${ACCENT}`, color: ACCENT, fontSize: 11, fontWeight: 700, padding: "4px 10px" }}>
-          <PinIcon color={ACCENT} />
+          <PinIcon color={ACCENT} size={9} />
           {job.location || "Unknown location"}
         </span>
-        {job.workMode !== "Unknown" && (
-          <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", background: theme.surfaceAlt, color: theme.muted }}>{job.workMode}</span>
-        )}
+        {job.workMode !== "Unknown" && <span style={tagStyle(theme)}>{job.workMode}</span>}
       </div>
       {job.pay && <div style={{ fontSize: 14, fontWeight: 700, marginTop: 12 }}>{job.pay}</div>}
 
@@ -248,12 +362,7 @@ function DetailScreen({ job, dark, onBack }: { job: DisplayListing; dark: boolea
       </div>
 
       {job.link && (
-        <a
-          href={job.link}
-          target="_blank"
-          rel="noreferrer"
-          style={{ display: "block", textAlign: "left", marginTop: 22, background: ACCENT, color: "#fff", textDecoration: "none", fontWeight: 800, fontSize: 14, padding: "14px 16px" }}
-        >
+        <a href={job.link} target="_blank" rel="noreferrer" style={{ display: "block", textAlign: "left", marginTop: 22, textDecoration: "none", padding: "14px 16px", ...primaryBtnStyle() }}>
           View original posting
         </a>
       )}
@@ -262,7 +371,7 @@ function DetailScreen({ job, dark, onBack }: { job: DisplayListing; dark: boolea
           href={job.companyLink}
           target="_blank"
           rel="noreferrer"
-          style={{ display: "block", textAlign: "left", marginTop: 10, border: `1.5px solid ${theme.divider}`, color: theme.text, textDecoration: "none", fontWeight: 800, fontSize: 14, padding: "13px 16px" }}
+          style={{ display: "block", textAlign: "left", marginTop: 10, textDecoration: "none", padding: "13px 16px", ...secondaryBtnStyle(theme) }}
         >
           Visit company
         </a>
@@ -272,94 +381,36 @@ function DetailScreen({ job, dark, onBack }: { job: DisplayListing; dark: boolea
 }
 
 function FilterSheet({
-  dark,
-  activeFilters,
-  onToggle,
+  theme,
+  locations,
   onClear,
   onClose,
 }: {
-  dark: boolean;
-  activeFilters: Set<LocationFilter>;
-  onToggle: (filter: LocationFilter) => void;
+  theme: typeof THEME.light;
+  locations: LocationOption[];
   onClear: () => void;
   onClose: () => void;
 }) {
-  const theme = dark ? THEME.dark : THEME.light;
   return (
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 30 }} />
-      <div
-        className="max-w-[440px] sm:max-w-[600px] lg:max-w-[680px] mx-auto"
-        style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 31,
-          background: theme.surface,
-          borderTop: `2px solid ${theme.divider}`,
-          padding: "20px 20px 32px",
-          color: theme.text,
-        }}
-      >
+      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 31, background: theme.surface, borderTop: `2px solid ${theme.divider}`, padding: "20px 20px 40px", maxWidth: 480, margin: "0 auto", color: theme.text }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontWeight: 800, fontSize: 16 }}>Filter by location</div>
-          <button
-            type="button"
-            className="jft-btn"
-            onClick={onClose}
-            style={{ background: "none", border: "none", color: theme.text, fontSize: 20, lineHeight: 1, cursor: "pointer", padding: 0 }}
-          >
+          <button type="button" className="jft-btn" onClick={onClose} style={{ ...ghostBtnStyle(theme.text), fontSize: 20, lineHeight: 1 }}>
             &times;
           </button>
         </div>
         <div style={{ marginTop: 8 }}>
-          {LOCATION_FILTERS.map((loc) => {
-            const checked = activeFilters.has(loc);
-            return (
-              <div
-                key={loc}
-                onClick={() => onToggle(loc)}
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: `1px solid ${theme.divider}`, cursor: "pointer" }}
-              >
-                <div
-                  style={{
-                    width: 19,
-                    height: 19,
-                    flex: "none",
-                    border: `1.5px solid ${checked ? ACCENT : theme.divider}`,
-                    background: checked ? ACCENT : "transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {checked && (
-                    <svg width="11" height="9" viewBox="0 0 24 20" fill="none">
-                      <path d="M1 10l7 7L23 1" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </div>
-                <span style={{ fontSize: 14, fontWeight: 600 }}>{loc}</span>
-              </div>
-            );
-          })}
+          {locations.map((loc) => (
+            <LocationRow key={loc.label} loc={loc} theme={theme} size={19} />
+          ))}
         </div>
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-          <button
-            type="button"
-            className="jft-btn"
-            onClick={onClear}
-            style={{ flex: 1, border: `1.5px solid ${theme.divider}`, background: "transparent", color: theme.text, fontWeight: 800, fontSize: 13, padding: 12, cursor: "pointer" }}
-          >
+          <button type="button" className="jft-btn" onClick={onClear} style={{ flex: 1, padding: 12, ...secondaryBtnStyle(theme) }}>
             Clear
           </button>
-          <button
-            type="button"
-            className="jft-btn"
-            onClick={onClose}
-            style={{ flex: 1, border: "none", background: ACCENT, color: "#fff", fontWeight: 800, fontSize: 13, padding: 12, cursor: "pointer" }}
-          >
+          <button type="button" className="jft-btn" onClick={onClose} style={{ flex: 1, padding: 12, ...primaryBtnStyle() }}>
             Apply
           </button>
         </div>
@@ -368,14 +419,26 @@ function FilterSheet({
   );
 }
 
-export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
+export function JobFitApp({ jobs: allJobs }: { jobs: DisplayListing[] }) {
   const [dark, setDark] = useState(false);
   const [screen, setScreen] = useState<"list" | "detail">("list");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<LocationFilter>>(new Set());
+  const [sortBy, setSortBy] = useState<SortBy>("fit");
+  const [width, setWidth] = useState(1200);
+
+  useEffect(() => {
+    const onResize = () => setWidth(window.innerWidth);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const theme = dark ? THEME.dark : THEME.light;
+  const isDesktop = width >= 860;
+  const isSplit = isDesktop;
+  const isTabletUp = width >= 640;
 
   const toggleFilter = (filter: LocationFilter) => {
     setActiveFilters((prev) => {
@@ -387,112 +450,199 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
   };
 
   const filtered = useMemo(() => {
-    const base = activeFilters.size === 0 ? jobs : jobs.filter((job) => [...activeFilters].some((f) => matchesLocationFilter(job, f)));
-    return [...base].sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0));
-  }, [jobs, activeFilters]);
+    if (activeFilters.size === 0) return allJobs;
+    return allJobs.filter((job) => [...activeFilters].some((f) => matchesLocationFilter(job, f)));
+  }, [allJobs, activeFilters]);
 
-  const selectedJob = jobs.find((j) => j.id === selectedJobId) ?? null;
+  const sorted = useMemo(() => {
+    const list = [...filtered];
+    if (sortBy === "recent") {
+      list.sort((a, b) => new Date(b.datePosted ?? 0).getTime() - new Date(a.datePosted ?? 0).getTime());
+    } else if (sortBy === "company") {
+      list.sort((a, b) => a.company.localeCompare(b.company));
+    } else {
+      list.sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0));
+    }
+    return list;
+  }, [filtered, sortBy]);
+
+  const selectedJob = allJobs.find((j) => j.id === selectedJobId) ?? null;
   const filterLabel = activeFilters.size === 0 ? "All" : [...activeFilters].join(", ");
-  const isEmpty = filtered.length === 0;
+  const isEmpty = sorted.length === 0;
+  const rowPad = "16px 20px";
+
+  const locations: LocationOption[] = LOCATION_FILTERS.map((label) => ({
+    label,
+    isChecked: activeFilters.has(label),
+    count: allJobs.filter((j) => matchesLocationFilter(j, label)).length,
+    toggle: () => toggleFilter(label),
+  }));
+
+  const screenList = isSplit ? true : screen === "list";
+  const screenDetail = !!selectedJob && (isSplit ? true : screen === "detail");
+
+  const openDetail = (id: string) => {
+    setSelectedJobId(id);
+    setScreen("detail");
+  };
+  const goBack = () => setScreen("list");
+  const clearSelection = () => {
+    setSelectedJobId(null);
+    setScreen("list");
+  };
+
+  const listMaxWidth = isSplit ? (width >= 1150 ? "520px" : "400px") : "none";
+  const detailPad = isSplit ? "0 0 40px" : "58px 20px 40px";
 
   return (
     <div style={{ minHeight: "100vh", background: theme.bg, color: theme.text }}>
-      <div className="max-w-[440px] sm:max-w-[600px] lg:max-w-[680px] mx-auto" style={{ position: "relative" }}>
-        {screen === "list" && (
-          <>
-            <div style={{ padding: "32px 20px 4px" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 21, fontWeight: 800 }}>Listings</h3>
-                  <div style={{ fontSize: 12, marginTop: 2, color: theme.muted }}>
-                    {activeFilters.size === 0 ? `${filtered.length} roles` : `${filtered.length} of ${jobs.length} roles`}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="jft-btn"
-                  onClick={() => setDark((d) => !d)}
-                  style={{ width: 36, height: 36, flex: "none", border: `1.5px solid ${theme.divider}`, background: "transparent", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  {dark ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="5" stroke={theme.text} strokeWidth="2" />
-                      <g stroke={theme.text} strokeWidth="2" strokeLinecap="round">
-                        <line x1="12" y1="1" x2="12" y2="3" />
-                        <line x1="12" y1="21" x2="12" y2="23" />
-                        <line x1="1" y1="12" x2="3" y2="12" />
-                        <line x1="21" y1="12" x2="23" y2="12" />
-                      </g>
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z" stroke={theme.text} strokeWidth="2" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              <div style={{ height: 2, background: theme.divider, marginTop: 14 }} />
-            </div>
-
-            <div style={{ padding: "12px 20px 6px" }}>
-              <button
-                type="button"
-                className="jft-btn"
-                onClick={() => setSheetOpen(true)}
-                style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", border: `1.5px solid ${theme.divider}`, background: "transparent", color: theme.text, fontWeight: 800, fontSize: 13, padding: "11px 14px", cursor: "pointer" }}
-              >
-                <span>Location &middot; {filterLabel}</span>
-                <svg width="11" height="7" viewBox="0 0 11 7" fill="none">
-                  <path d="M1 1l4.5 5L10 1" stroke={theme.text} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </div>
-
-            {isEmpty ? (
-              <div style={{ padding: "64px 28px", textAlign: "center" }}>
-                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto" }}>
-                  <circle cx="11" cy="11" r="7" stroke={theme.muted} strokeWidth="2" />
-                  <line x1="21" y1="21" x2="16.5" y2="16.5" stroke={theme.muted} strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                <div style={{ fontWeight: 800, fontSize: 15, marginTop: 16 }}>{jobs.length === 0 ? "No listings yet" : "No roles match these filters"}</div>
-                <div style={{ fontSize: 13, marginTop: 6, color: theme.muted }}>
-                  {jobs.length === 0 ? "They'll show up here once the scheduled job runs." : "Try clearing a filter to see more roles."}
-                </div>
-                {activeFilters.size > 0 && (
-                  <button
-                    type="button"
-                    className="jft-btn"
-                    onClick={() => setActiveFilters(new Set())}
-                    style={{ marginTop: 18, border: `1.5px solid ${ACCENT}`, color: ACCENT, background: "transparent", fontWeight: 800, fontSize: 12, padding: "9px 16px", cursor: "pointer" }}
-                  >
-                    Reset filters
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div>
-                {filtered.map((job) => (
-                  <JobRow key={job.id} job={job} dark={dark} onOpen={() => { setSelectedJobId(job.id); setScreen("detail"); }} />
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {screen === "detail" && selectedJob && (
-          <DetailScreen job={selectedJob} dark={dark} onBack={() => setScreen("list")} />
-        )}
-
-        {sheetOpen && (
-          <FilterSheet
-            dark={dark}
-            activeFilters={activeFilters}
-            onToggle={toggleFilter}
-            onClear={() => setActiveFilters(new Set())}
-            onClose={() => setSheetOpen(false)}
-          />
-        )}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px", borderBottom: `2px solid ${theme.divider}` }}>
+        <div>
+          <h6 style={{ color: ACCENT, margin: "0 0 3px", fontSize: 11 }}>Personal tool</h6>
+          <h1 style={{ fontSize: 20, margin: 0, fontWeight: 800 }}>Job Fit Tracker</h1>
+        </div>
+        <button type="button" className="jft-btn" onClick={() => setDark((d) => !d)} style={{ width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", ...secondaryBtnStyle(theme) }}>
+          {dark ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="5" stroke={theme.text} strokeWidth="2" />
+              <g stroke={theme.text} strokeWidth="2" strokeLinecap="round">
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+              </g>
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z" stroke={theme.text} strokeWidth="2" strokeLinejoin="round" />
+            </svg>
+          )}
+        </button>
       </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: 24, maxWidth: 1180, margin: "0 auto", padding: 24 }}>
+        {/* Desktop sidebar */}
+        <div style={{ width: 180, flex: "none", display: isDesktop ? "flex" : "none", flexDirection: "column", position: "sticky", top: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 12, borderBottom: `2px solid ${theme.divider}`, marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800, fontSize: 16 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M3 5h18M6 12h12M10 19h4" stroke={theme.text} strokeWidth="2.2" strokeLinecap="round" />
+              </svg>
+              Filters
+            </div>
+            {activeFilters.size > 0 && (
+              <button type="button" className="jft-btn" onClick={() => setActiveFilters(new Set())} style={{ ...ghostBtnStyle(ACCENT), fontSize: 12 }}>
+                Clear all
+              </button>
+            )}
+          </div>
+          <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: "0.04em", textTransform: "uppercase", color: theme.muted, marginBottom: 10 }}>Location</div>
+          {locations.map((loc) => (
+            <LocationRow key={loc.label} loc={loc} theme={theme} size={16} />
+          ))}
+        </div>
+
+        {/* Mobile filter trigger */}
+        <div style={{ width: isTabletUp ? "480px" : "100%", flex: "none", display: isDesktop ? "none" : "block" }}>
+          <button
+            type="button"
+            className="jft-btn"
+            onClick={() => setSheetOpen(true)}
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", ...secondaryBtnStyle(theme) }}
+          >
+            <span>Location &middot; {filterLabel}</span>
+            <ChevronDownIcon color={theme.text} />
+          </button>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0, display: "flex", gap: 16, alignItems: "flex-start" }}>
+          {/* List pane */}
+          <div style={{ flex: 1, minWidth: 220, maxWidth: listMaxWidth }}>
+            {screenList && (
+              <>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>
+                    {activeFilters.size === 0 ? `${sorted.length} roles` : `${sorted.length} of ${allJobs.length} roles`}
+                  </div>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortBy)}
+                    style={{ border: `1.5px solid ${theme.divider}`, background: "transparent", color: theme.text, fontWeight: 700, fontSize: 12, padding: "7px 10px", cursor: "pointer" }}
+                  >
+                    <option value="fit">Sort by: Fit score</option>
+                    <option value="recent">Sort by: Most recent</option>
+                    <option value="company">Sort by: Company A–Z</option>
+                  </select>
+                </div>
+                <div style={{ fontSize: 12.5, color: theme.muted, marginTop: 4 }}>Refine by location to narrow results.</div>
+                <div style={{ height: 2, background: theme.divider, margin: "12px 0 16px" }} />
+
+                {isEmpty ? (
+                  <div style={{ padding: "64px 28px", textAlign: "center" }}>
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto" }}>
+                      <circle cx="11" cy="11" r="7" stroke={theme.muted} strokeWidth="2" />
+                      <line x1="21" y1="21" x2="16.5" y2="16.5" stroke={theme.muted} strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                    <div style={{ fontWeight: 800, fontSize: 15, marginTop: 16 }}>{allJobs.length === 0 ? "No listings yet" : "No roles match these filters"}</div>
+                    <div style={{ fontSize: 13, marginTop: 6, color: theme.muted }}>
+                      {allJobs.length === 0 ? "They'll show up here once the scheduled job runs." : "Try clearing a filter to see more roles."}
+                    </div>
+                    {activeFilters.size > 0 && (
+                      <button type="button" className="jft-btn" onClick={() => setActiveFilters(new Set())} style={{ marginTop: 18, padding: "9px 16px", ...secondaryBtnStyle(theme) }}>
+                        Reset filters
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {sorted.map((job) => (
+                      <JobCard
+                        key={job.id}
+                        job={job}
+                        theme={theme}
+                        dark={dark}
+                        active={isSplit && job.id === selectedJobId}
+                        rowPad={rowPad}
+                        onOpen={() => openDetail(job.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Detail pane */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              flex: 1,
+              minWidth: 240,
+              display: isSplit ? "block" : screen === "detail" ? "block" : "none",
+              position: isSplit ? "sticky" : "fixed",
+              inset: isSplit ? "auto" : 0,
+              top: isSplit ? 24 : 0,
+              maxHeight: isSplit ? "calc(100vh - 48px)" : "none",
+              zIndex: 40,
+              background: theme.bg,
+              overflowY: "auto",
+            }}
+          >
+            {screenDetail && selectedJob ? (
+              <DetailPane job={selectedJob} theme={theme} dark={dark} pad={detailPad} showBack={!isSplit} showClose={isSplit} onBack={goBack} onClose={clearSelection} />
+            ) : (
+              isSplit &&
+              !selectedJob && (
+                <div style={{ padding: "80px 28px", textAlign: "center", color: theme.muted }}>
+                  <div style={{ fontSize: 13 }}>Select a role to see its fit breakdown</div>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+
+      {sheetOpen && <FilterSheet theme={theme} locations={locations} onClear={() => setActiveFilters(new Set())} onClose={() => setSheetOpen(false)} />}
     </div>
   );
 }

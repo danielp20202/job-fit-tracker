@@ -179,12 +179,33 @@ GitHub integration (no CLI deploys — see note below).
   `@notionhq/client`, sorted by Fit Score descending.
 - `src/app/page.tsx` — server component, fetches listings, `revalidate = 300`.
 - `src/components/JobFitApp.tsx` — client component implementing the actual
-  UI: list screen, detail screen, and a bottom-sheet location filter
-  (Remote / Montreal / Ottawa / Toronto, multi-select). Visual design ported
-  from a Claude Design canvas ("Job Fit Tracker Mobile.dc.html," Modernist
-  design system — Archivo type, sharp corners, red accent `#ec3013`, thick
-  dividers). Manual light/dark toggle (not tied to system preference,
-  matching the original design spec).
+  UI. Responsive breakpoints tracked via a `window.innerWidth` resize
+  listener (`isDesktop` at ≥860px, `isTabletUp` at ≥640px):
+  - **Desktop (≥860px):** persistent left sidebar with location filters
+    (checkboxes + per-location counts, "Clear all"), and a **master-detail
+    split view** — list and detail pane side by side, detail pane is
+    `position: sticky`; clicking a card never navigates away from the list,
+    it just populates the detail pane (a `×` button clears the selection
+    without leaving the list). Sort-by dropdown (Fit score / Most recent /
+    Company A–Z) above the list.
+  - **Mobile/tablet (<860px):** a button opens a bottom-sheet location
+    filter (same options, no counts shown); selecting a card replaces the
+    list with a full-screen detail overlay with a back button, rather than
+    showing both at once.
+  - Visual design ported from a Claude Design canvas ("Job Fit Tracker
+    Mobile.dc.html," Modernist design system — Archivo type, sharp corners,
+    red accent `#ec3013`, thick dividers), re-imported and re-implemented
+    once to add sort-by and the desktop split view (the original import was
+    mobile-only). Manual light/dark toggle (not tied to system preference,
+    matching the original design spec).
+  - Two layout bugs existed in the source design and were fixed during
+    implementation, not present in the design file itself: the row
+    containing the mobile filter button needs `flexWrap: wrap` (without it,
+    a `width: 100%` sibling in a non-wrapping flex row pushes the list
+    completely off-screen on mobile), and the detail pane's mobile overlay
+    needs `top: 0` to match its `inset: 0` full-screen positioning (the
+    design's `top: "auto"` combined with `inset: 0` left a large blank gap
+    above the content).
 
 ## Deployment notes
 
