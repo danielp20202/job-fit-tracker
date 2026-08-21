@@ -18,6 +18,7 @@ import {
   StarIcon,
   ExternalLinkIcon,
   VisaSponsorshipBadge,
+  UnityPriorityBadge,
   secondaryBtnStyle,
   ghostBtnStyle,
   tagStyle,
@@ -119,9 +120,10 @@ export function ArchiveApp({ jobs }: { jobs: DisplayListing[] }) {
             const badgeBg = job.fitScore !== null ? BADGE_LIGHT[scoreTier(job.fitScore)].bg : BADGE_NEUTRAL.bg;
             return (
               <div key={job.id} style={{ border: `1.5px solid ${theme.divider}`, padding: "16px 20px" }}>
-                {job.visaSponsorship && (
-                  <div style={{ marginBottom: 10 }}>
-                    <VisaSponsorshipBadge />
+                {(job.unityPriority || job.visaSponsorship) && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+                    {job.unityPriority && <UnityPriorityBadge />}
+                    {job.visaSponsorship && <VisaSponsorshipBadge />}
                   </div>
                 )}
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>

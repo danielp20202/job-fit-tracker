@@ -8,6 +8,8 @@ export const ACCENT = "#ec3013";
 export const ACCENT_700 = "#ae1800";
 export const GOLD = "#f5b700";
 export const GOLD_DARK = "#3d2e00";
+export const UNITY_BLUE = "#1852ff";
+export const UNITY_BLUE_DARK = "#0a1f66";
 const LOCATION_FILTERS = ["Montreal", "Ottawa", "Toronto"] as const;
 type LocationFilter = (typeof LOCATION_FILTERS)[number];
 const WORK_MODE_FILTERS = ["Remote", "Hybrid", "Onsite"] as const;
@@ -159,6 +161,31 @@ export function VisaSponsorshipBadge({ size = "normal" }: { size?: "normal" | "l
   );
 }
 
+/** Unity roles are an automatic top-priority score (see docs/fit-rubric.md) — distinct blue so it reads apart from the visa badge and the red fit-score palette at a glance. */
+export function UnityPriorityBadge({ size = "normal" }: { size?: "normal" | "large" }) {
+  const fontSize = size === "large" ? 12 : 10.5;
+  const padding = size === "large" ? "5px 12px" : "3px 9px";
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        background: UNITY_BLUE,
+        color: "#ffffff",
+        fontWeight: 800,
+        fontSize,
+        letterSpacing: "0.02em",
+        padding,
+        border: `1.5px solid ${UNITY_BLUE_DARK}`,
+      }}
+    >
+      <StarIcon fill="#ffffff" />
+      Unity Priority
+    </span>
+  );
+}
+
 /** btn-secondary look, matching the Modernist design system's button classes (replicated as inline styles, see docs/architecture.md on why we don't import the raw CSS). */
 export function secondaryBtnStyle(theme: typeof THEME.light): React.CSSProperties {
   return { border: `1.5px solid ${theme.divider}`, background: "transparent", color: theme.text, fontWeight: 800, cursor: "pointer" };
@@ -238,15 +265,16 @@ function JobCard({
       onClick={onOpen}
       className="jft-row"
       style={{
-        border: job.visaSponsorship ? `2px solid ${GOLD}` : `1.5px solid ${theme.divider}`,
+        border: job.unityPriority ? `2px solid ${UNITY_BLUE}` : job.visaSponsorship ? `2px solid ${GOLD}` : `1.5px solid ${theme.divider}`,
         padding: rowPad,
         cursor: "pointer",
         background: active ? theme.surfaceAlt : "transparent",
       }}
     >
-      {job.visaSponsorship && (
-        <div style={{ marginBottom: 10 }}>
-          <VisaSponsorshipBadge />
+      {(job.unityPriority || job.visaSponsorship) && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+          {job.unityPriority && <UnityPriorityBadge />}
+          {job.visaSponsorship && <VisaSponsorshipBadge />}
         </div>
       )}
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -361,9 +389,10 @@ function DetailPane({
       </div>
       <h2 style={{ margin: 0, fontSize: 23, fontWeight: 800 }}>{job.title}</h2>
 
-      {job.visaSponsorship && (
-        <div style={{ marginTop: 10 }}>
-          <VisaSponsorshipBadge size="large" />
+      {(job.unityPriority || job.visaSponsorship) && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+          {job.unityPriority && <UnityPriorityBadge size="large" />}
+          {job.visaSponsorship && <VisaSponsorshipBadge size="large" />}
         </div>
       )}
 
@@ -574,7 +603,10 @@ export function JobFitApp({ jobs }: { jobs: DisplayListing[] }) {
     const byFit = (a: DisplayListing, b: DisplayListing) => (b.fitScore ?? 0) - (a.fitScore ?? 0);
     const byRecent = (a: DisplayListing, b: DisplayListing) => new Date(b.datePosted ?? 0).getTime() - new Date(a.datePosted ?? 0).getTime();
     list.sort((a, b) => {
-      // Visa sponsorship is rare and high-value -- always bubbles to the top, ahead of whatever sort is active.
+      // Unity roles are the single highest priority (closed work permit re-entry path) -- always bubble to the very top.
+      const unityDiff = Number(b.unityPriority) - Number(a.unityPriority);
+      if (unityDiff !== 0) return unityDiff;
+      // Visa sponsorship is rare and high-value -- bubbles to the top next, ahead of whatever sort is active.
       const visaDiff = Number(b.visaSponsorship) - Number(a.visaSponsorship);
       if (visaDiff !== 0) return visaDiff;
       if (sortBy === "company") return a.company.localeCompare(b.company);

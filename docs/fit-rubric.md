@@ -57,10 +57,35 @@ end (max ±0.1), because a senior individual-contributor role with real
 enterprise scope and strong comp should score just as well as an equivalent
 people-management role.
 
+## Unity override (check this first, before anything else below)
+
+If the hiring company is Unity (Unity Technologies, Unity Software, or a
+Unity-owned brand/subsidiary — e.g. Unity Ads, Unity Growth, ironSource
+under the Unity umbrella), this overrides every other rule in this
+document, including the hard disqualifiers:
+
+- **Score exactly 5.0.** Do not run the weighted factors, the hard
+  disqualifiers, or the Leadership/IC or Contract/Term modifiers — a Unity
+  posting always scores 5.0 regardless of function, seniority, comp,
+  location, or contract type.
+- Set the `Unity Priority` flag true on the Job Listings row (see
+  architecture docs for the property).
+- `Fit Reasoning` should say so plainly, e.g. "Unity — automatic top
+  priority score," then briefly name the actual role/department for
+  context (so the reasoning still reads as useful information, not just
+  the override notice).
+
+This is deliberate and not a normal scoring judgment: Daniel holds a
+closed work permit tied specifically to Unity, and returning to the
+company through any open role — regardless of function or seniority — is
+the most direct path to resolving that status. Job/function fit is
+irrelevant to this rule; only the employer matters.
+
 ## Hard disqualifiers (score = 1, regardless of anything else)
 
-Apply these first, before computing anything below. If any apply, stop and
-score 1 — do not run the weighted factors.
+Apply these first (after checking the Unity override above), before
+computing anything below. If any apply, stop and score 1 — do not run the
+weighted factors.
 
 - Fully on-site with no remote/hybrid option, UNLESS the on-site location is
   Ottawa, Toronto, or Montreal (or their immediate metro areas) — treat any

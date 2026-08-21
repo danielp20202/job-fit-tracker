@@ -20,6 +20,7 @@ export interface DisplayListing {
   fitReasoning: string;
   status: string;
   visaSponsorship: boolean;
+  unityPriority: boolean;
 }
 
 function richText(prop: unknown): string {
@@ -44,6 +45,7 @@ function pageToListing(page: PageObjectResponse): DisplayListing {
     fitReasoning: richText(props["Fit Reasoning"]),
     status: (props.Status as { select?: { name?: string } })?.select?.name ?? "New",
     visaSponsorship: (props["Visa Sponsorship"] as { checkbox?: boolean })?.checkbox ?? false,
+    unityPriority: (props["Unity Priority"] as { checkbox?: boolean })?.checkbox ?? false,
   };
 }
 

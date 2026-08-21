@@ -220,7 +220,16 @@ Added (created_time), Fit Score (1.0-5.0, decimals allowed), Fit Reasoning, Stat
 manually edited by Daniel in Notion; New/Reviewed/Applied/Rejected/Ignored),
 Source Guid, Stale (checkbox), Visa Sponsorship (checkbox — detected by the
 scoring routine from explicit mentions in the posting text only, defaults
-false; rare by design), Archived (checkbox — a custom soft-archive flag, not
+false; rare by design), Unity Priority (checkbox — set true by the scoring
+routine's Unity override in `docs/fit-rubric.md`: any posting where the
+hiring company is Unity gets a hardcoded Fit Score of 5.0 and this flag
+set, bypassing every other rubric factor and hard disqualifier entirely.
+Personal context, not a general product decision: Daniel holds a closed
+work permit tied specifically to Unity, so any open Unity role is the most
+direct path back regardless of function/seniority fit. Unity-flagged
+listings are also exempt from the age-based auto-archive in step 9 of the
+routine — everything else can go stale and archive on schedule, these
+don't), Archived (checkbox — a custom soft-archive flag, not
 Notion's native trash; Notion's public API has no reliable way to query
 pages moved to native trash via a regular integration, so this project uses
 a plain checkbox instead. Set by the scoring routine's age/score-based
@@ -287,9 +296,16 @@ GitHub integration (no CLI deploys — see note below).
   - **Visa Sponsorship** gets a deliberately distinct gold badge (not the
     app's red accent) on both the card and detail view, plus a gold card
     border — rare and high-value, so it's designed to be impossible to miss
-    at a glance. Listings with it set always sort to the very top, ahead of
-    the active sort criterion (implemented as the first comparator in the
-    sort function, before whatever `sortBy` is selected).
+    at a glance. Listings with it set sort near the top, ahead of the
+    active sort criterion (implemented as a comparator in the sort
+    function, before whatever `sortBy` is selected).
+  - **Unity Priority** gets its own distinct blue badge/border (`UNITY_BLUE`,
+    separate from both the red accent and the gold visa badge, since a card
+    can carry both at once) and is the single highest sort priority —
+    ahead of even Visa Sponsorship — reflecting that it's the most
+    consequential flag in the whole app for Daniel specifically (see the
+    Job Listings schema note above on why). A card shows both badges
+    stacked if a listing happens to have both flags set.
   - Visual design ported from a Claude Design canvas ("Job Fit Tracker
     Mobile.dc.html," Modernist design system — Archivo type, sharp corners,
     red accent `#ec3013`, thick dividers), re-imported and re-implemented
