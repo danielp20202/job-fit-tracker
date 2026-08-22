@@ -10,6 +10,23 @@ description contains. The agent cannot reliably fetch the live LinkedIn
 posting, so every factor below must be assessable from that captured text
 alone — don't assume more detail is available than what's on the page.
 
+## Fit Reasoning content (what actually displays under each listing)
+
+`Fit Reasoning` is shown directly under the fit score in the webapp — it's
+what Daniel actually reads when browsing listings. It should primarily be
+a **1-2 sentence summary of the company and the role** (what the company
+does/sells, and what the role actually involves — scope, seniority,
+account type), not an explanation of how the score was computed. Don't
+walk through the rubric factors or cite point values.
+
+A hard disqualifier, thin/low-confidence data, or the Unity bonus can
+still be noted, but only as a short trailing clause after the summary
+(e.g. "— disqualified: on-site outside Canada" or "— Unity bonus
+applied"), never as the main content. If a company/role can't be
+meaningfully summarized from the available text (e.g. a very thin
+ASGC-style listing), a brief factual description is still preferable to a
+scoring explanation.
+
 ## Candidate profile (context, not restated in output)
 
 8+ years in B2B SaaS/gaming Customer Success & Partner Relations. Currently
@@ -73,10 +90,9 @@ under the Unity umbrella):
 - Set the `Unity Priority` flag true on the Job Listings row regardless of
   the resulting score (see architecture docs for the property) — the flag
   marks "this is Unity," not "this scored well."
-- `Fit Reasoning` should mention the bonus explicitly, e.g. "Unity bonus
-  (+0.5) applied on top of a base score of 2.8 for [brief reason]," so the
-  reasoning shows both the underlying fit and the boost, not just a final
-  number.
+- `Fit Reasoning` should still lead with the role/company summary (see the
+  "Fit Reasoning content" section above); append "— Unity bonus applied"
+  as a short trailing note, not the main content.
 
 This is deliberate and not a normal scoring judgment: Daniel holds a
 closed work permit tied specifically to Unity, and returning to the
@@ -252,12 +268,11 @@ the text (not merely "not the ideal scenario," but actually unassessable):
   rather than guessing high, per the guidance already given per-factor
   (e.g. "salary unconfirmed" defaults per Factor 2, location-unstated
   defaults to 0.2 per Factor 3).
-- The one-sentence `Fit Reasoning` must explicitly flag this, e.g. "Scope
-  unclear from posting text, scored conservatively" or "Thin description,
-  low confidence" — so a low score arising from missing information reads
-  differently downstream than a low score arising from a confirmed poor
-  fit. Do not let a low-confidence score look identical, in the reasoning
-  text, to a confident poor-fit score.
+- `Fit Reasoning` should still lead with whatever role/company summary can
+  be pieced together (see "Fit Reasoning content" above); append a short
+  trailing note like "— thin description, scored conservatively" so a low
+  score from missing information doesn't read identically to a low score
+  from a confirmed poor fit.
 
 ## Notes for the scorer
 
