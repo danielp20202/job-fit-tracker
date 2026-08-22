@@ -235,8 +235,12 @@ work permit tied specifically to Unity, so any open Unity role is worth a
 meaningful boost as a path back, regardless of function/seniority fit —
 just not an automatic 5. Unity-flagged listings are also exempt from both
 the age-based auto-archive (step 9) and the low-score fast-archive (step
-9a), regardless of their score — everything else can go stale/archive on
-schedule, these don't), Archived (checkbox — a custom soft-archive flag, not
+9a) — but only when the posting isn't itself hard-disqualified (detected
+by the routine checking `Fit Reasoning` for a disqualifier note); a Unity
+posting that failed a hard disqualifier (e.g. on-site outside Canada)
+archives on the normal schedule like anything else, so geographically
+impossible Unity postings don't pile up indefinitely just because they're
+Unity), Archived (checkbox — a custom soft-archive flag, not
 Notion's native trash; Notion's public API has no reliable way to query
 pages moved to native trash via a regular integration, so this project uses
 a plain checkbox instead. Set by the scoring routine's age/score-based

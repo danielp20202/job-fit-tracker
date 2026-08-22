@@ -101,8 +101,13 @@ resolving that status — worth a meaningful boost regardless of function or
 seniority, but not so large that it should be indistinguishable from an
 actually great-fit role at another company. The `Unity Priority` flag (not
 the score) is what the webapp uses to sort these to the very top and
-exempt them from auto-archiving, so under-scoring one doesn't mean it gets
-buried or cleaned up — see the webapp section of `docs/architecture.md`.
+exempt them from auto-archiving — but only when the posting isn't itself
+hard-disqualified. A Unity posting that fails a hard disqualifier (e.g.
+on-site outside Canada, US-only remote, relocation required) archives on
+the normal schedule like any other listing; the exemption exists so a
+merely low-scoring but still-viable Unity role doesn't get buried, not so
+that geographically impossible postings pile up indefinitely. See the
+webapp section of `docs/architecture.md`.
 
 ## Hard disqualifiers (score = 1, regardless of anything else)
 
