@@ -22,7 +22,7 @@ POST /api/webhooks/rss  (this repo, on Vercel)            │  writes structured
         └──────────────────► Notion — "Job Inbox" database ◄──────────────────┘
                               (unprocessed, unscored)
                                         │
-                                        │  scheduled cloud routine, 3x/day
+                                        │  scheduled cloud routine, 1x/day
                                         ▼
                         Notion — "Job Listings" database
                         (scored, deduped, lifecycle-managed)
@@ -43,7 +43,7 @@ on with a broad "customer success" search producing ~8 new postings/hour.
 Webhooks solve this: rss.app pushes each new item the moment it's detected,
 independent of feed-cap truncation or how often anything else runs. This
 decouples **capture** (real-time, cheap, always-on) from **scoring**
-(batched, 3x/day, the actual cost driver).
+(batched, once/day, the actual cost driver).
 
 This doesn't apply to the ASGC source (see component 3 below), which is
 polled daily instead — it has no feed-cap truncation risk (the API always
@@ -153,8 +153,11 @@ Schema: Title, URL, Description, Date Published, Feed Title, Processed
 Not code in this repo — a cloud routine created via Claude Code's
 `/schedule` feature (`RemoteTrigger` API), routine id
 `trig_01FTJ1yeDbuggBpQzf8VEb5E`, viewable at
-https://claude.ai/code/routines/trig_01FTJ1yeDbuggBpQzf8VEb5E. Fires 3x/day
-(`0 4,12,20 * * *` UTC = 12am/8am/4pm America/Toronto). Each run is a fresh,
+https://claude.ai/code/routines/trig_01FTJ1yeDbuggBpQzf8VEb5E. Fires once
+daily (`0 10 * * *` UTC = 6am America/Toronto during EDT; shifts to 5am
+during EST since the cron is fixed in UTC and doesn't follow DST — was
+3x/day originally, reduced to once/day to ease pressure on the shared
+Notion query quota). Each run is a fresh,
 isolated cloud session with no memory of prior runs or this repo — the
 entire task (data source IDs, both schemas, the full fit rubric, and every
 step) is self-contained in the routine's prompt.

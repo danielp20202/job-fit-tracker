@@ -25,9 +25,9 @@ remote or hybrid — see Factor 3 for the full location ranking (remote and
 Ottawa on-site/hybrid rank highest; hybrid elsewhere is next; on-site Toronto
 or Montreal is acceptable but weaker; on-site anywhere else is disqualifying).
 No preference on company stage/size (startup vs. enterprise
-is fine either way). No strong industry preference beyond a slight lean toward
-tech/SaaS-adjacent companies — score other industries on their own merits,
-don't penalize for industry alone. Open to both people-management roles and
+is fine either way). **Tech-only — see the hard disqualifiers below**: not
+interested in any role outside tech/tech-adjacent companies, regardless of
+how strong the role itself looks. Open to both people-management roles and
 strong individual-contributor Account Management / CSM roles — see the
 scoring philosophy below.
 
@@ -104,6 +104,21 @@ do not run the weighted factors.
   working from outside Canada.
 - Requires US work authorization / US-only remote (no Canada option).
 - Stated base salary (if listed) below CAD 100,000.
+- **Not a tech or tech-adjacent company** (added per explicit direction —
+  this is a strict filter, not a preference). In scope: software/SaaS/
+  tech-platform companies (including gaming/game engines, dev tools, ad
+  tech, cybersecurity, data/analytics platforms), and tech-enabled
+  companies in adjacent spaces where the core product/service is
+  fundamentally delivered via technology (e.g. fintech, healthtech,
+  e-commerce/marketplace platforms, other tech-first business models).
+  Out of scope: traditional banks/insurers/wealth management, traditional
+  retail/manufacturing, traditional healthcare providers/hospitals,
+  consultancies/agencies whose core business isn't technology, traditional
+  real estate/construction/energy/utilities, government/public sector,
+  and similar. Judge by what the company actually builds or sells, not
+  whether it uses technology internally — a bank's own tech/digital team
+  is still a bank. When genuinely ambiguous from the posting text alone,
+  lean toward disqualifying rather than guessing tech-adjacent status.
 
 ## Factor 1 — Account Scope & Seniority (0 – 2.0 points)
 
