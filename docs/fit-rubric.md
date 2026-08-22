@@ -48,7 +48,7 @@ four factors below, then apply the leadership/IC modifier last.
 ```
 Base score = 1.0 + Scope/Seniority + Compensation + Location + Function Fit
 Final score = Base score + Leadership/IC modifier + Contract/Term modifier
-              (clamp to [1.0, 5.0])
+              + Unity bonus (clamp to [1.0, 5.0])
 ```
 
 Whether the role is IC or people-management is deliberately **not** one of
@@ -57,35 +57,42 @@ end (max ±0.1), because a senior individual-contributor role with real
 enterprise scope and strong comp should score just as well as an equivalent
 people-management role.
 
-## Unity override (check this first, before anything else below)
+## Unity bonus (apply last, alongside the other modifiers — not an override)
 
 If the hiring company is Unity (Unity Technologies, Unity Software, or a
 Unity-owned brand/subsidiary — e.g. Unity Ads, Unity Growth, ironSource
-under the Unity umbrella), this overrides every other rule in this
-document, including the hard disqualifiers:
+under the Unity umbrella):
 
-- **Score exactly 5.0.** Do not run the weighted factors, the hard
-  disqualifiers, or the Leadership/IC or Contract/Term modifiers — a Unity
-  posting always scores 5.0 regardless of function, seniority, comp,
-  location, or contract type.
-- Set the `Unity Priority` flag true on the Job Listings row (see
-  architecture docs for the property).
-- `Fit Reasoning` should say so plainly, e.g. "Unity — automatic top
-  priority score," then briefly name the actual role/department for
-  context (so the reasoning still reads as useful information, not just
-  the override notice).
+- Score the posting normally against every factor below, including the
+  hard disqualifiers — a Unity posting is **not** exempt from location,
+  comp, or function scoring, and can still land at 1.0 if it's genuinely a
+  poor fit (e.g. an on-site role somewhere disqualifying).
+- After computing the normal final score (weighted factors + Leadership/IC
+  modifier + Contract/Term modifier), add a flat **+0.5** Unity bonus,
+  then clamp to [1.0, 5.0].
+- Set the `Unity Priority` flag true on the Job Listings row regardless of
+  the resulting score (see architecture docs for the property) — the flag
+  marks "this is Unity," not "this scored well."
+- `Fit Reasoning` should mention the bonus explicitly, e.g. "Unity bonus
+  (+0.5) applied on top of a base score of 2.8 for [brief reason]," so the
+  reasoning shows both the underlying fit and the boost, not just a final
+  number.
 
 This is deliberate and not a normal scoring judgment: Daniel holds a
 closed work permit tied specifically to Unity, and returning to the
-company through any open role — regardless of function or seniority — is
-the most direct path to resolving that status. Job/function fit is
-irrelevant to this rule; only the employer matters.
+company through any open role is one of the most direct paths to
+resolving that status — worth a meaningful boost regardless of function or
+seniority, but not so large that it should be indistinguishable from an
+actually great-fit role at another company. The `Unity Priority` flag (not
+the score) is what the webapp uses to sort these to the very top and
+exempt them from auto-archiving, so under-scoring one doesn't mean it gets
+buried or cleaned up — see the webapp section of `docs/architecture.md`.
 
 ## Hard disqualifiers (score = 1, regardless of anything else)
 
-Apply these first (after checking the Unity override above), before
-computing anything below. If any apply, stop and score 1 — do not run the
-weighted factors.
+Apply these first, before computing anything below (the Unity bonus above
+is added after this, not instead of it). If any apply, stop and score 1 —
+do not run the weighted factors.
 
 - Fully on-site with no remote/hybrid option, UNLESS the on-site location is
   Ottawa, Toronto, or Montreal (or their immediate metro areas) — treat any

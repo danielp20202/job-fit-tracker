@@ -220,16 +220,20 @@ Added (created_time), Fit Score (1.0-5.0, decimals allowed), Fit Reasoning, Stat
 manually edited by Daniel in Notion; New/Reviewed/Applied/Rejected/Ignored),
 Source Guid, Stale (checkbox), Visa Sponsorship (checkbox — detected by the
 scoring routine from explicit mentions in the posting text only, defaults
-false; rare by design), Unity Priority (checkbox — set true by the scoring
-routine's Unity override in `docs/fit-rubric.md`: any posting where the
-hiring company is Unity gets a hardcoded Fit Score of 5.0 and this flag
-set, bypassing every other rubric factor and hard disqualifier entirely.
+false; rare by design), Unity Priority (checkbox — set true whenever the
+hiring company is Unity, per the Unity bonus in `docs/fit-rubric.md`. This
+is a bonus, not an override: the posting is still scored normally against
+every rubric factor and hard disqualifier, then gets a flat +0.5 added at
+the end (clamped to 5.0) — a disqualified Unity posting can still land at
+1.5, it isn't rescued to a top score. The flag is set regardless of the
+resulting score; it means "this is Unity," not "this scored well."
 Personal context, not a general product decision: Daniel holds a closed
-work permit tied specifically to Unity, so any open Unity role is the most
-direct path back regardless of function/seniority fit. Unity-flagged
-listings are also exempt from the age-based auto-archive in step 9 of the
-routine — everything else can go stale and archive on schedule, these
-don't), Archived (checkbox — a custom soft-archive flag, not
+work permit tied specifically to Unity, so any open Unity role is worth a
+meaningful boost as a path back, regardless of function/seniority fit —
+just not an automatic 5. Unity-flagged listings are also exempt from both
+the age-based auto-archive (step 9) and the low-score fast-archive (step
+9a), regardless of their score — everything else can go stale/archive on
+schedule, these don't), Archived (checkbox — a custom soft-archive flag, not
 Notion's native trash; Notion's public API has no reliable way to query
 pages moved to native trash via a regular integration, so this project uses
 a plain checkbox instead. Set by the scoring routine's age/score-based
